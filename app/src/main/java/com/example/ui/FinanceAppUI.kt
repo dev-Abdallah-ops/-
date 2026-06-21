@@ -123,6 +123,7 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                                 "goals" -> if (appSettings.language == "Arabic") "أهداف الادخار" else "Savings Goals"
                                 "settings" -> if (appSettings.language == "Arabic") "الإعدادات" else "Settings"
                                 "search" -> if (appSettings.language == "Arabic") "البحث والفرز" else "Search & Filter"
+                                "transactions" -> if (appSettings.language == "Arabic") "سجل المعاملات الكلي" else "Transaction History"
                                 else -> "Finance Tracker"
                             },
                             fontWeight = FontWeight.Bold,
@@ -136,21 +137,6 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                         }
                     },
                     actions = {
-                        // Days streak banner
-                        Box(
-                            modifier = Modifier
-                                .padding(end = 8.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(PremiumAccentOrange.copy(alpha = 0.2f))
-                                .padding(horizontal = 10.dp, vertical = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Star, contentDescription = "Streak", tint = PremiumAccentOrange, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("15d", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PremiumAccentOrange)
-                            }
-                        }
                         IconButton(onClick = { currentTab = "search" }) {
                             Icon(Icons.Default.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.onSurface)
                         }
@@ -247,7 +233,9 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                             appSettings = appSettings,
                             aiInsight = aiInsight,
                             aiLoading = aiLoading,
-                            onChangeTab = { currentTab = it }
+                            onChangeTab = { currentTab = it },
+                            onQuickAddIncome = { showAddIncome = true },
+                            onQuickAddExpense = { showAddExpense = true }
                         )
                         "income" -> IncomeScreen(
                             viewModel = viewModel,
@@ -310,6 +298,14 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                             onEditIncome = { activeIncomeToEdit = it },
                             onEditExpense = { activeExpenseToEdit = it }
                         )
+                        "transactions" -> TransactionHistoryScreen(
+                            viewModel = viewModel,
+                            incomes = incomes,
+                            expenses = expenses,
+                            appSettings = appSettings,
+                            customCategories = customCategories,
+                            onBackToHome = { currentTab = "overview" }
+                        )
                     }
                 }
 
@@ -323,12 +319,12 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                         text = {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 val labels = if (appSettings.language == "Arabic") {
-                                    listOf("الملخص", "الدخل الوارد", "المصاريف", "الفواتير المتكررة", "أهداف الادخار", "تقويم المعاملات", "البحث والفرز", "إعدادات التطبيق")
+                                    listOf("الملخص", "الدخل الوارد", "المصاريف", "سجل المعاملات", "الفواتير المتكررة", "أهداف الادخار", "تقويم المعاملات", "البحث والفرز", "إعدادات التطبيق")
                                 } else {
-                                    listOf("Overview", "Income Tracker", "Expenses", "Recurring Bills", "Savings Goals", "Financial Calendar", "Search & Filter", "Settings Screen")
+                                    listOf("Overview", "Income Tracker", "Expenses", "Transaction History", "Recurring Bills", "Savings Goals", "Financial Calendar", "Search & Filter", "Settings Screen")
                                 }
-                                val tabs = listOf("overview", "income", "expenses", "bills", "goals", "calendar", "search", "settings")
-                                val icons = listOf(Icons.Default.Home, Icons.Default.KeyboardArrowDown, Icons.Default.KeyboardArrowUp, Icons.Default.DateRange, Icons.Default.Star, Icons.Default.DateRange, Icons.Default.Search, Icons.Default.Settings)
+                                val tabs = listOf("overview", "income", "expenses", "transactions", "bills", "goals", "calendar", "search", "settings")
+                                val icons = listOf(Icons.Default.Home, Icons.Default.KeyboardArrowDown, Icons.Default.KeyboardArrowUp, Icons.Default.List, Icons.Default.DateRange, Icons.Default.Star, Icons.Default.DateRange, Icons.Default.Search, Icons.Default.Settings)
 
                                 tabs.forEachIndexed { index, tab ->
                                     Button(
@@ -1067,9 +1063,17 @@ fun OverviewScreen(
     appSettings: AppSettings,
     aiInsight: String?,
     aiLoading: Boolean,
-    onChangeTab: (String) -> Unit
+    onChangeTab: (String) -> Unit,
+    onQuickAddIncome: () -> Unit,
+    onQuickAddExpense: () -> Unit
 ) {
     val context = LocalContext.current
+    var isAmountMasked by remember { mutableStateOf(false) }
+    var showHealthDetailsDialog by remember { mutableStateOf(false) }
+
+    fun formatMasked(amount: Double): String {
+        return if (isAmountMasked) "••••" else viewModel.formatAmount(amount)
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -1078,7 +1082,7 @@ fun OverviewScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(vertical = 16.dp)
     ) {
-        // Net Balance Card (with dynamic red-green gradients)
+        // Net Balance Card (with dynamic red-green gradients and privacy mask toggle)
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -1090,15 +1094,32 @@ fun OverviewScreen(
                         .fillMaxWidth()
                         .padding(24.dp)
                 ) {
-                    Text(
-                        text = LocalizedStrings.get("net_balance", appSettings.language == "Arabic"),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = LocalizedStrings.get("net_balance", appSettings.language == "Arabic"),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        IconButton(
+                            onClick = { isAmountMasked = !isAmountMasked },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isAmountMasked) Icons.Default.Lock else Icons.Default.Info,
+                                contentDescription = "Toggle Privacy Masking",
+                                tint = if (isAmountMasked) PremiumAccentRed else PremiumAccentMint,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = viewModel.formatAmount(netBalance),
+                        text = formatMasked(netBalance),
                         color = if (netBalance >= 0) PremiumAccentMint else PremiumAccentRed,
                         fontSize = 36.sp,
                         fontWeight = FontWeight.ExtraBold
@@ -1106,31 +1127,66 @@ fun OverviewScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
                     Spacer(modifier = Modifier.height(16.dp))
+                    
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         OverviewMetricItem(
                             label = LocalizedStrings.get("income_cap", appSettings.language == "Arabic"),
-                            valStr = viewModel.formatAmount(totalIncome),
+                            valStr = formatMasked(totalIncome),
                             colorTheme = PremiumAccentMint
                         )
                         OverviewMetricItem(
                             label = LocalizedStrings.get("expenses_cap", appSettings.language == "Arabic"),
-                            valStr = viewModel.formatAmount(totalExpenses),
+                            valStr = formatMasked(totalExpenses),
                             colorTheme = PremiumAccentRed
                         )
                         OverviewMetricItem(
                             label = LocalizedStrings.get("bills_cap", appSettings.language == "Arabic"),
-                            valStr = viewModel.formatAmount(totalBills),
+                            valStr = formatMasked(totalBills),
                             colorTheme = PremiumAccentPurple
                         )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+                    
+                    // Quick Action Logging Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = onQuickAddIncome,
+                            colors = ButtonDefaults.buttonColors(containerColor = PremiumAccentMint.copy(alpha = 0.12f), contentColor = PremiumAccentMint),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(if (appSettings.language == "Arabic") "+ إضافة دخل" else "+ Add Income", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                        
+                        Button(
+                            onClick = onQuickAddExpense,
+                            colors = ButtonDefaults.buttonColors(containerColor = PremiumAccentRed.copy(alpha = 0.12f), contentColor = PremiumAccentRed),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(if (appSettings.language == "Arabic") "+ إضافة مصروف" else "+ Add Expense", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
         }
 
-        // Circular financial health score out of 100
+        // Circular financial health score out of 100 (Clickable for report dialog)
         item {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showHealthDetailsDialog = true },
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
@@ -1142,12 +1198,16 @@ fun OverviewScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(modifier = Modifier.weight(1.2f)) {
-                        Text(
-                            text = LocalizedStrings.get("financial_health", appSettings.language == "Arabic"),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = LocalizedStrings.get("financial_health", appSettings.language == "Arabic"),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(Icons.Default.Info, contentDescription = "Explain Score", tint = PremiumAccentOrange, modifier = Modifier.size(14.dp))
+                        }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = when {
@@ -1162,6 +1222,12 @@ fun OverviewScreen(
                                 else -> PremiumAccentRed
                             },
                             fontSize = 13.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (appSettings.language == "Arabic") "اضغط لعرض النصائح المخصصة" else "Tap for personalized safety tips",
+                            fontSize = 11.sp,
+                            color = PremiumTextSecondaryDark
                         )
                     }
 
@@ -1224,7 +1290,7 @@ fun OverviewScreen(
                             fontSize = 14.sp
                         )
                         Text(
-                            viewModel.formatAmount(netWorth),
+                            formatMasked(netWorth),
                             fontWeight = FontWeight.ExtraBold,
                             color = PremiumAccentMint,
                             fontSize = 15.sp
@@ -1234,11 +1300,11 @@ fun OverviewScreen(
                     Row(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(LocalizedStrings.get("assets", appSettings.language == "Arabic"), fontSize = 11.sp, color = PremiumTextSecondaryDark)
-                            Text(viewModel.formatAmount(netBalance), fontWeight = FontWeight.Bold, color = PremiumAccentMint)
+                            Text(formatMasked(netBalance), fontWeight = FontWeight.Bold, color = PremiumAccentMint)
                         }
                         Column(modifier = Modifier.weight(1f)) {
                             Text(LocalizedStrings.get("liabilities", appSettings.language == "Arabic"), fontSize = 11.sp, color = PremiumTextSecondaryDark)
-                            Text(viewModel.formatAmount(unpaidBillsAmount), fontWeight = FontWeight.Bold, color = PremiumAccentRed)
+                            Text(formatMasked(unpaidBillsAmount), fontWeight = FontWeight.Bold, color = PremiumAccentRed)
                         }
                     }
                 }
@@ -1292,9 +1358,25 @@ fun OverviewScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Expenses", fontSize = 11.sp, color = PremiumAccentRed)
-                        Text("Bills", fontSize = 11.sp, color = PremiumAccentPurple)
-                        Text("Remaining", fontSize = 11.sp, color = Color.Gray)
+                        Text(
+                            text = if (appSettings.language == "Arabic") "المصاريف ➔" else "Expenses ➔",
+                            fontSize = 11.sp,
+                            color = PremiumAccentRed,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clickable { onChangeTab("expenses") }
+                        )
+                        Text(
+                            text = if (appSettings.language == "Arabic") "الفواتير ➔" else "Bills ➔",
+                            fontSize = 11.sp,
+                            color = PremiumAccentPurple,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clickable { onChangeTab("bills") }
+                        )
+                        Text(
+                            text = if (appSettings.language == "Arabic") "المتبقي" else "Remaining",
+                            fontSize = 11.sp,
+                            color = Color.Gray
+                        )
                     }
                 }
             }
@@ -1404,6 +1486,61 @@ fun OverviewScreen(
             }
         }
 
+        // Recent Transactions Shortcut Card (Highly Interactive!)
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onChangeTab("transactions") },
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(PremiumAccentBlue.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.List, contentDescription = null, tint = PremiumAccentBlue, modifier = Modifier.size(18.dp))
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = if (appSettings.language == "Arabic") "سجل كل المعاملات الكلي" else "Full Transaction History",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (appSettings.language == "Arabic") "تصفح وبحث وحذف المعاملات بضغطة واحدة مطولة" else "Browse, filter & long-press to quick delete",
+                                fontSize = 11.sp,
+                                color = PremiumTextSecondaryDark
+                            )
+                        }
+                    }
+                    
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowRight,
+                        contentDescription = "Go",
+                        tint = PremiumTextSecondaryDark,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+
         // Shortcuts Grid Section
         item {
             Row(
@@ -1438,6 +1575,82 @@ fun OverviewScreen(
                 }
             }
         }
+    }
+
+    if (showHealthDetailsDialog) {
+        AlertDialog(
+            onDismissRequest = { showHealthDetailsDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = "Health",
+                        tint = if (healthScore >= 80) PremiumAccentMint else if (healthScore >= 50) PremiumAccentOrange else PremiumAccentRed,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = if (appSettings.language == "Arabic") "تفاصيل الصحة المالية" else "Financial Health Details",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = (if (appSettings.language == "Arabic") "مؤشر صحتك الحالية هو " else "Your current health index is ") + "$healthScore / 100",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = if (healthScore >= 80) PremiumAccentMint else if (healthScore >= 50) PremiumAccentOrange else PremiumAccentRed
+                    )
+                    Text(
+                        text = if (appSettings.language == "Arabic") {
+                            "يتم حساب نتيجة الصحة المالية بتوازن ذكي بين مصادرك المالية ومدى إلتزامك في دفع الفواتير والإدخار لتحقيق الأهداف."
+                        } else {
+                            "Financial health score is calculated as a smart balance between your current assets, expenses, due bills unpaid, and savings progress."
+                        },
+                        fontSize = 13.sp,
+                        color = PremiumTextSecondaryDark
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                    Text(
+                        text = if (appSettings.language == "Arabic") "نصائح مخصصة لك:" else "Personalized Tips for You:",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    val tips = when {
+                        healthScore >= 80 -> listOf(
+                            if (appSettings.language == "Arabic") "صحتك المالية ممتازة! واصل الادخار الذكي وتجنب الديون." else "Your financial health is amazing! Keep up the smart savings habit and avoid debt.",
+                            if (appSettings.language == "Arabic") "استثمر جزءاً من المدخرات لتنمية ثروتك على المدى الطويل." else "Invest a portion of your savings to grow long-term wealth."
+                        )
+                        healthScore >= 50 -> listOf(
+                            if (appSettings.language == "Arabic") "صحتك معتدلة. حاول تقليل المصاريف الجانبية هذا الشهر." else "Your health is moderate. Try reducing non-essential expenses this month.",
+                            if (appSettings.language == "Arabic") "تأكد من سداد الفواتير المستحقة قبل تراكمها." else "Ensure you pay off your pending bills before they accumulate."
+                        )
+                        else -> listOf(
+                            if (appSettings.language == "Arabic") "تحتاج إلى مراجعة عاجلة لميزانيتك والحد من الهدر." else "Urgent budget review needed. Minimize discretionary spending.",
+                            if (appSettings.language == "Arabic") "ابدأ بإضافة أهداف ادخار صغيرة والالتزام بنسبة 10% على الأقل." else "Start by setting small saving goals and budget at least 10%."
+                        )
+                    }
+                    tips.forEach { tip ->
+                        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("•", fontWeight = FontWeight.Bold, color = PremiumAccentMint)
+                            Text(tip, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showHealthDetailsDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = PremiumAccentMint)
+                ) {
+                    Text(if (appSettings.language == "Arabic") "حسناً" else "Okay")
+                }
+            }
+        )
     }
 }
 
@@ -2889,3 +3102,393 @@ fun HorizontalCalendarStrip(
         }
     }
 }
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun TransactionHistoryScreen(
+    viewModel: FinanceViewModel,
+    incomes: List<Income>,
+    expenses: List<Expense>,
+    appSettings: AppSettings,
+    customCategories: List<CustomCategory>,
+    onBackToHome: () -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedTabFilter by remember { mutableStateOf("All") } // All, Income, Expenses
+    var selectedCategoryFilter by remember { mutableStateOf("All") } // All, or specific category
+    var showDeleteConfirmDialog by remember { mutableStateOf<TransactionItem?>(null) }
+
+    val isArabic = appSettings.language == "Arabic"
+
+    // Consolidate both transaction sets chronologically (from newest to oldest)
+    val transactionsList = remember(incomes, expenses) {
+        val mappedIncomes = incomes.map {
+            TransactionItem(
+                id = it.id,
+                name = it.name,
+                amount = it.amount,
+                category = it.category,
+                timestamp = it.timestamp,
+                notes = it.notes,
+                isIncome = true,
+                originalIncome = it
+            )
+        }
+        val mappedExpenses = expenses.map {
+            TransactionItem(
+                id = it.id,
+                name = it.name,
+                amount = it.amount,
+                category = it.category,
+                timestamp = it.timestamp,
+                notes = it.notes,
+                isIncome = false,
+                originalExpense = it
+            )
+        }
+        (mappedIncomes + mappedExpenses).sortedByDescending { it.timestamp }
+    }
+
+    // Filtered Transactions
+    val filteredTransactions = remember(transactionsList, searchQuery, selectedTabFilter, selectedCategoryFilter) {
+        transactionsList.filter { item ->
+            // Tab filter
+            val matchesTab = when (selectedTabFilter) {
+                "Income" -> item.isIncome
+                "Expenses" -> !item.isIncome
+                else -> true
+            }
+
+            // Category filter
+            val matchesCategory = selectedCategoryFilter == "All" || item.category == selectedCategoryFilter
+
+            // Search query filter
+            val matchesQuery = searchQuery.isBlank() ||
+                    item.name.contains(searchQuery, ignoreCase = true) ||
+                    item.category.contains(searchQuery, ignoreCase = true) ||
+                    item.notes.contains(searchQuery, ignoreCase = true)
+
+            matchesTab && matchesCategory && matchesQuery
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+    ) {
+        // Search text field
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = { Text(if (isArabic) "ابحث عن معاملة (الاسم، فئة، ملاحظة)..." else "Search description, category...") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { searchQuery = "" }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                    }
+                }
+            },
+            shape = RoundedCornerShape(14.dp),
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        )
+
+        // Type Filter Tabs (Chips)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val filters = listOf("All", "Income", "Expenses")
+            val labels = if (isArabic) listOf("كل المعاملات", "الدخل فقط", "المصاريف فقط") else listOf("All Items", "Income Only", "Expenses Only")
+            
+            filters.forEachIndexed { i, filter ->
+                val isSelected = selectedTabFilter == filter
+                ElevatedFilterChip(
+                    selected = isSelected,
+                    onClick = {
+                        selectedTabFilter = filter
+                        selectedCategoryFilter = "All" // Reset category filter on changing type
+                    },
+                    label = { Text(labels[i], fontSize = 12.sp, fontWeight = FontWeight.Bold) },
+                    colors = FilterChipDefaults.elevatedFilterChipColors(
+                        selectedContainerColor = if (filter == "Income") PremiumAccentMint else if (filter == "Expenses") PremiumAccentRed else MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.Black
+                    )
+                )
+            }
+        }
+
+        // Category Filter list (Scroller)
+        val allCategories = remember(selectedTabFilter, customCategories) {
+            val standardList = if (selectedTabFilter == "Income") {
+                listOf("Salary", "Freelance", "Investment", "Rental", "Business", "Bonus", "Pension", "Dividends", "Royalties", "Commission", "Side Income", "Other")
+            } else if (selectedTabFilter == "Expenses") {
+                listOf("Food", "Transport", "Housing", "Healthcare", "Entertainment", "Shopping", "Utilities", "Education", "Other")
+            } else {
+                listOf("Food", "Transport", "Housing", "Healthcare", "Entertainment", "Shopping", "Utilities", "Education", "Salary", "Freelance", "Investment", "Other")
+            }
+            val customNames = customCategories.map { it.name }
+            listOf("All") + (standardList + customNames).distinct()
+        }
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp)
+        ) {
+            items(allCategories) { category ->
+                val isSelected = selectedCategoryFilter == category
+                val dispLabel = if (category == "All") (if (isArabic) "جميع الفئات" else "All Categories") else LocalizedStrings.localizeCategory(category, isArabic)
+                
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { selectedCategoryFilter = category },
+                    label = { Text(dispLabel, fontSize = 11.sp) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                )
+            }
+        }
+
+        // Stats card for currently loaded & filtered view
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = (if (isArabic) "المعاملات المصفاة: " else "Filtered transactions: ") + "${filteredTransactions.size}",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                // Instructions banner for quick usage
+                Text(
+                    text = if (isArabic) "💡 اضغط مطولاً للحذف السريع" else "💡 Long-press to quick delete",
+                    fontSize = 11.sp,
+                    color = PremiumAccentOrange,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Transaction list of items
+        if (filteredTransactions.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = PremiumTextSecondaryDark
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = if (isArabic) "لم يتم العثور على أي معاملات بحسب فلاتر البحث الحالية" else "No matching transactions found with current filters",
+                        textAlign = TextAlign.Center,
+                        color = PremiumTextSecondaryDark,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(bottom = 20.dp)
+            ) {
+                items(filteredTransactions, key = { "${if(it.isIncome) "inc" else "exp"}_${it.id}" }) { trans ->
+                    TransactionHistoryRowItem(
+                        item = trans,
+                        viewModel = viewModel,
+                        isArabic = isArabic,
+                        onLongClick = {
+                            showDeleteConfirmDialog = trans
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    // Deletion Modal Dialog
+    if (showDeleteConfirmDialog != null) {
+        val selectedTrans = showDeleteConfirmDialog!!
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = null },
+            title = {
+                Text(
+                    if (isArabic) "حذف سريع للمعاملة" else "Quick Delete Transaction",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    if (isArabic) {
+                        "هل أنت متأكد من رغبتك في حذف المعاملة \"${selectedTrans.name}\" بقيمة ${viewModel.formatAmount(selectedTrans.amount)}؟ لن تتمكن من استرجاع هذا الإجراء."
+                    } else {
+                        "Are you sure you want to delete \"${selectedTrans.name}\" with amount ${viewModel.formatAmount(selectedTrans.amount)}? This action is irreversible."
+                    }
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (selectedTrans.isIncome && selectedTrans.originalIncome != null) {
+                            viewModel.deleteIncome(selectedTrans.originalIncome)
+                        } else if (!selectedTrans.isIncome && selectedTrans.originalExpense != null) {
+                            viewModel.deleteExpense(selectedTrans.originalExpense)
+                        }
+                        showDeleteConfirmDialog = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = PremiumAccentRed)
+                ) {
+                    Text(if (isArabic) "نعم، احذف المعاملة" else "Yes, Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteConfirmDialog = null }
+                ) {
+                    Text(if (isArabic) "إلغاء" else "Cancel")
+                }
+            }
+        )
+    }
+}
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun TransactionHistoryRowItem(
+    item: TransactionItem,
+    viewModel: FinanceViewModel,
+    isArabic: Boolean,
+    onLongClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = {},
+                onLongClick = onLongClick
+            ),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                // Circle visual indicator of category/type
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (item.isIncome) PremiumAccentMint.copy(alpha = 0.12f) else PremiumAccentRed.copy(alpha = 0.12f)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (item.isIncome) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                        contentDescription = null,
+                        tint = if (item.isIncome) PremiumAccentMint else PremiumAccentRed,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column {
+                    Text(
+                        text = item.name,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = LocalizedStrings.localizeCategory(item.category, isArabic),
+                            fontSize = 11.sp,
+                            color = if (item.isIncome) PremiumAccentMint else PremiumAccentPurple,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "•",
+                            fontSize = 10.sp,
+                            color = PremiumTextSecondaryDark
+                        )
+                        Text(
+                            text = viewModel.formatTimestampToDate(item.timestamp),
+                            fontSize = 11.sp,
+                            color = PremiumTextSecondaryDark
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Amount formatted with currency symbol
+            Text(
+                text = (if (item.isIncome) "+" else "-") + viewModel.formatAmount(item.amount),
+                color = if (item.isIncome) PremiumAccentMint else PremiumAccentRed,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 15.sp
+            )
+        }
+    }
+}
+
+data class TransactionItem(
+    val id: Int,
+    val name: String,
+    val amount: Double,
+    val category: String,
+    val timestamp: Long,
+    val notes: String = "",
+    val isIncome: Boolean,
+    val originalIncome: Income? = null,
+    val originalExpense: Expense? = null
+)
