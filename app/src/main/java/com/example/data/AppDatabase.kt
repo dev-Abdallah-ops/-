@@ -12,7 +12,7 @@ import androidx.room.RoomDatabase
         AppSettings::class,
         CustomCategory::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

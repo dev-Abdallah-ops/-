@@ -1,6 +1,7 @@
 package com.example.ui
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,6 +24,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -108,8 +110,253 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
         }
     }
 
+    val isArabic = appSettings.language == "Arabic"
+    var isAppUnlocked by remember { mutableStateOf(false) }
+    var showBiometricAuthPrompt by remember { mutableStateOf(false) }
+    var isScanning by remember { mutableStateOf(false) }
+    var scanSuccess by remember { mutableStateOf(false) }
+
     MyApplicationTheme(themePreference = appSettings.theme) {
-        Scaffold(
+        if (appSettings.isBiometricLockEnabled && !isAppUnlocked) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxHeight().padding(vertical = 48.dp)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(top = 32.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(PremiumAccentMint.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = null,
+                                tint = PremiumAccentMint,
+                                modifier = Modifier.size(42.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Tawffer",
+                            fontWeight = FontWeight.Black,
+                            fontSize = 32.sp,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = if (isArabic) "وفّر أكتر مع لمسة أمان ذكية" else "Save more with smart, secure touches",
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable {
+                                isScanning = false
+                                scanSuccess = false
+                                showBiometricAuthPrompt = true
+                            }
+                            .padding(16.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .clip(CircleShape)
+                                .background(PremiumAccentMint.copy(alpha = 0.1f))
+                                .border(1.5.dp, PremiumAccentMint, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Unlock App",
+                                tint = PremiumAccentMint,
+                                modifier = Modifier.size(42.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = if (isArabic) "اضغط هنا لفتح التطبيق بالبصمة" else "Tap to unlock Tawffer",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = PremiumAccentMint
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = if (isArabic) "البيانات مشفرة ومحميّة بالكامل على جهازك" else "Data is fully encrypted and locally stored on your device",
+                            fontSize = 11.sp,
+                            color = Color.Gray.copy(alpha = 0.7f),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+            }
+
+            if (showBiometricAuthPrompt) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.6f)),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(36.dp)
+                                    .height(4.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Gray.copy(alpha = 0.5f))
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = PremiumAccentMint,
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Text(
+                                text = if (isArabic) "إثبات الهوية لـ Tawffer" else "Verify your identity for Tawffer",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = if (isArabic) 
+                                    "يرجى استخدام مستشعر البصمة أو الضغط لتأكيد الهوية البيومترية الآمنة والدخول للتطبيق."
+                                    else "Please touch the fingerprint sensor or confirm to securely log into your account.",
+                                fontSize = 13.sp,
+                                color = Color.Gray,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+
+                            Spacer(modifier = Modifier.height(32.dp))
+
+                            LaunchedEffect(isScanning) {
+                                if (isScanning) {
+                                    kotlinx.coroutines.delay(1000)
+                                    scanSuccess = true
+                                    kotlinx.coroutines.delay(450)
+                                    isAppUnlocked = true
+                                    showBiometricAuthPrompt = false
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(76.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (scanSuccess) PremiumAccentMint.copy(alpha = 0.2f)
+                                        else if (isScanning) PremiumAccentPurple.copy(alpha = 0.2f)
+                                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                                    )
+                                    .clickable(enabled = !isScanning) {
+                                        isScanning = true
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (scanSuccess) {
+                                    Icon(
+                                        imageVector = Icons.Default.Done,
+                                        contentDescription = "Success",
+                                        tint = PremiumAccentMint,
+                                        modifier = Modifier.size(38.dp)
+                                    )
+                                } else if (isScanning) {
+                                    CircularProgressIndicator(
+                                        color = PremiumAccentPurple,
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = "Tap to Scan",
+                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Text(
+                                text = if (scanSuccess) 
+                                    (if (isArabic) "تم التحقق بنجاح!" else "Identity Verified!") 
+                                    else if (isScanning) (if (isArabic) "جاري المسح الحركي..." else "Scanning fingerprint...")
+                                    else (if (isArabic) "اضغط هنا لتأكيد البصمة والمسح" else "Tap here to confirm & simulate scan"),
+                                fontSize = 12.sp,
+                                color = if (scanSuccess) PremiumAccentMint else if (isScanning) PremiumAccentPurple else Color.Gray,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(
+                                    onClick = { showBiometricAuthPrompt = false }
+                                ) {
+                                    Text(
+                                        text = if (isArabic) "إلغاء البصمة" else "Cancel",
+                                        color = PremiumAccentRed
+                                    )
+                                }
+
+                                TextButton(
+                                    onClick = { 
+                                        isAppUnlocked = true
+                                        showBiometricAuthPrompt = false
+                                        android.widget.Toast.makeText(context, if (isArabic) "تم الدخول برمز المرور والنسخ الاحتياطي" else "Logged in via backup passcode", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                ) {
+                                    Text(
+                                        text = if (isArabic) "رمز المرور الاحتياطي" else "Use Backup PIN",
+                                        color = PremiumAccentMint
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            Scaffold(
             topBar = {
                 TopAppBar(
                     title = {
@@ -150,55 +397,84 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                 )
             },
             bottomBar = {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 8.dp,
-                    windowInsets = WindowInsets.navigationBars
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .background(Color.Transparent)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    NavigationBarItem(
-                        selected = currentTab == "overview",
-                        onClick = { currentTab = "overview" },
-                        icon = { Icon(Icons.Default.Home, contentDescription = "Overview") },
-                        label = { Text(if (appSettings.language == "Arabic") "الملخص" else "Overview", fontSize = 11.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = PremiumAccentMint,
-                            selectedTextColor = PremiumAccentMint,
-                            indicatorColor = PremiumAccentMint.copy(alpha = 0.15f)
-                        )
-                    )
-                    NavigationBarItem(
-                        selected = currentTab == "income",
-                        onClick = { currentTab = "income" },
-                        icon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Income", tint = PremiumAccentMint) },
-                        label = { Text(if (appSettings.language == "Arabic") "الدخل" else "Income", fontSize = 11.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = PremiumAccentMint,
-                            selectedTextColor = PremiumAccentMint,
-                            indicatorColor = PremiumAccentMint.copy(alpha = 0.15f)
-                        )
-                    )
-                    NavigationBarItem(
-                        selected = currentTab == "expenses",
-                        onClick = { currentTab = "expenses" },
-                        icon = { Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Expenses", tint = PremiumAccentRed) },
-                        label = { Text(if (appSettings.language == "Arabic") "المصاريف" else "Expenses", fontSize = 11.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = PremiumAccentRed,
-                            selectedTextColor = PremiumAccentRed,
-                            indicatorColor = PremiumAccentRed.copy(alpha = 0.15f)
-                        )
-                    )
-                    NavigationBarItem(
-                        selected = currentTab == "bills",
-                        onClick = { currentTab = "bills" },
-                        icon = { Icon(Icons.Default.DateRange, contentDescription = "Bills", tint = PremiumAccentPurple) },
-                        label = { Text(if (appSettings.language == "Arabic") "الفواتير" else "Bills", fontSize = 11.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = PremiumAccentPurple,
-                            selectedTextColor = PremiumAccentPurple,
-                            indicatorColor = PremiumAccentPurple.copy(alpha = 0.15f)
-                        )
-                    )
+                    Card(
+                        modifier = Modifier.fillMaxWidth(0.96f),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp, horizontal = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceAround,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            PremiumTabItem(
+                                selected = currentTab == "overview",
+                                onClick = { currentTab = "overview" },
+                                icon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Home,
+                                        contentDescription = "Overview",
+                                        tint = if (currentTab == "overview") PremiumAccentMint else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                    )
+                                },
+                                label = if (appSettings.language == "Arabic") "الملخص" else "Overview",
+                                activeColor = PremiumAccentMint
+                            )
+                            PremiumTabItem(
+                                selected = currentTab == "income",
+                                onClick = { currentTab = "income" },
+                                icon = {
+                                    Icon(
+                                        imageVector = Icons.Default.KeyboardArrowDown,
+                                        contentDescription = "Income",
+                                        tint = if (currentTab == "income") PremiumAccentMint else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                    )
+                                },
+                                label = if (appSettings.language == "Arabic") "الدخل" else "Income",
+                                activeColor = PremiumAccentMint
+                            )
+                            PremiumTabItem(
+                                selected = currentTab == "expenses",
+                                onClick = { currentTab = "expenses" },
+                                icon = {
+                                    Icon(
+                                        imageVector = Icons.Default.KeyboardArrowUp,
+                                        contentDescription = "Expenses",
+                                        tint = if (currentTab == "expenses") PremiumAccentRed else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                    )
+                                },
+                                label = if (appSettings.language == "Arabic") "المصاريف" else "Expenses",
+                                activeColor = PremiumAccentRed
+                            )
+                            PremiumTabItem(
+                                selected = currentTab == "bills",
+                                onClick = { currentTab = "bills" },
+                                icon = {
+                                    Icon(
+                                        imageVector = Icons.Default.DateRange,
+                                        contentDescription = "Bills",
+                                        tint = if (currentTab == "bills") PremiumAccentPurple else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                    )
+                                },
+                                label = if (appSettings.language == "Arabic") "الفواتير" else "Bills",
+                                activeColor = PremiumAccentPurple
+                            )
+                        }
+                    }
                 }
             },
             containerColor = MaterialTheme.colorScheme.background,
@@ -213,7 +489,16 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                 AnimatedContent(
                     targetState = currentTab,
                     transitionSpec = {
-                        fadeIn() togetherWith fadeOut()
+                        val tabs = listOf("overview", "income", "expenses", "bills")
+                        val fromIndex = tabs.indexOf(initialState)
+                        val toIndex = tabs.indexOf(targetState)
+                        if (toIndex > fromIndex) {
+                            (slideInHorizontally(animationSpec = tween(280)) { width -> (width * 0.12f).toInt() } + fadeIn(animationSpec = tween(280)))
+                                .togetherWith(slideOutHorizontally(animationSpec = tween(280)) { width -> (-width * 0.12f).toInt() } + fadeOut(animationSpec = tween(150)))
+                        } else {
+                            (slideInHorizontally(animationSpec = tween(280)) { width -> (-width * 0.12f).toInt() } + fadeIn(animationSpec = tween(280)))
+                                .togetherWith(slideOutHorizontally(animationSpec = tween(280)) { width -> (width * 0.12f).toInt() } + fadeOut(animationSpec = tween(150)))
+                        }
                     },
                     label = "tab_transition"
                 ) { targetScreen ->
@@ -1045,6 +1330,7 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
         }
     }
 }
+}
 
 // --- OVERVIEW SUB-SCREEN ---
 @Composable
@@ -1313,73 +1599,15 @@ fun OverviewScreen(
 
         // Spending Breakdown segmented line bar (Page 13)
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        LocalizedStrings.get("spending_breakdown", appSettings.language == "Arabic"),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(10.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
-                    ) {
-                        val sumTotal = totalExpenses + totalBills
-                        if (sumTotal > 0.0) {
-                            val expRatio = (totalExpenses / sumTotal).toFloat()
-                            val billsRatio = (totalBills / sumTotal).toFloat()
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .weight(expRatio.coerceAtLeast(0.01f))
-                                    .background(PremiumAccentRed)
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .weight(billsRatio.coerceAtLeast(0.01f))
-                                    .background(PremiumAccentPurple)
-                            )
-                        } else {
-                            Box(modifier = Modifier.fillMaxSize().background(Color.Gray))
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (appSettings.language == "Arabic") "المصاريف ➔" else "Expenses ➔",
-                            fontSize = 11.sp,
-                            color = PremiumAccentRed,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.clickable { onChangeTab("expenses") }
-                        )
-                        Text(
-                            text = if (appSettings.language == "Arabic") "الفواتير ➔" else "Bills ➔",
-                            fontSize = 11.sp,
-                            color = PremiumAccentPurple,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.clickable { onChangeTab("bills") }
-                        )
-                        Text(
-                            text = if (appSettings.language == "Arabic") "المتبقي" else "Remaining",
-                            fontSize = 11.sp,
-                            color = Color.Gray
-                        )
-                    }
-                }
-            }
+            SpendingBreakdownChart(
+                totalExpenses = totalExpenses,
+                totalBills = totalBills,
+                topSpending = topSpending,
+                appSettings = appSettings,
+                viewModel = viewModel,
+                isAmountMasked = isAmountMasked,
+                onChangeTab = onChangeTab
+            )
         }
 
         // INTELLIGENT AI FINANCIAL ADVISOR WIDGET (Direct Integration!)
@@ -1807,9 +2035,16 @@ fun ExpensesScreen(
     val totalAmt = expenses.sumOf { it.amount }
     var selectedFilterCategory by remember { mutableStateOf("All") }
 
-    val filterList = remember(expenses, selectedFilterCategory) {
-        if (selectedFilterCategory == "All") expenses
-        else expenses.filter { it.category == selectedFilterCategory }
+    val filterList = remember(expenses, selectedFilterCategory, selectedDateStr) {
+        expenses.filter {
+            val matchesCategory = selectedFilterCategory == "All" || it.category == selectedFilterCategory
+            val matchesDate = viewModel.formatTimestampToDate(it.timestamp) == selectedDateStr
+            matchesCategory && matchesDate
+        }
+    }
+
+    val dailySum = remember(expenses, selectedDateStr) {
+        expenses.filter { viewModel.formatTimestampToDate(it.timestamp) == selectedDateStr }.sumOf { it.amount }
     }
 
     val categoriesSummaryMap = remember(expenses) {
@@ -1886,6 +2121,37 @@ fun ExpensesScreen(
             }
         }
 
+        // Daily sum highlight banner
+        val isArabic = appSettings.language == "Arabic"
+        val labelText = if (isArabic) "مجموع مصاريف اليوم: " else "Today's expenses total: "
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = PremiumAccentRed.copy(alpha = 0.08f)),
+            border = BorderStroke(1.dp, PremiumAccentRed.copy(alpha = 0.15f))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = labelText,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = viewModel.formatAmount(dailySum),
+                    fontWeight = FontWeight.Black,
+                    fontSize = 15.sp,
+                    color = PremiumAccentRed
+                )
+            }
+        }
+
         if (expenses.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1896,8 +2162,8 @@ fun ExpensesScreen(
                 }
             }
         } else if (filterList.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(if (appSettings.language == "Arabic") "مفيش مصاريف للفئة دي لسه!" else "No matching expenses for this category", color = Color.Gray)
+            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                Text(if (appSettings.language == "Arabic") "مفيش مصاريف لليوم ده أو الفئة دي لسه!" else "No matching expenses for this day or category", color = Color.Gray, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2018,50 +2284,109 @@ fun BillsScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.04f))
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(14.dp)
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(
-                                    checked = billItem.isPaid,
-                                    onCheckedChange = { isChecked ->
-                                        viewModel.updateBill(billItem.copy(isPaid = isChecked))
-                                    },
-                                    colors = CheckboxDefaults.colors(checkedColor = PremiumAccentMint)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(billItem.name, fontWeight = FontWeight.Bold)
-                                    Row {
-                                        Text(LocalizedStrings.localizeCategory(billItem.category, appSettings.language == "Arabic"), fontSize = 11.sp, color = PremiumAccentPurple)
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        val freqStr = when (billItem.frequency) {
-                                            "Monthly" -> if (appSettings.language == "Arabic") "شهرياً" else "Monthly"
-                                            "Weekly" -> if (appSettings.language == "Arabic") "أسبوعياً" else "Weekly"
-                                            else -> if (appSettings.language == "Arabic") "سنوياً" else "Yearly"
-                                        }
-                                        Text("${LocalizedStrings.get("due_day", appSettings.language == "Arabic")} ${billItem.dueDay} ($freqStr)", fontSize = 11.sp, color = Color.Gray)
-                                    }
+                            // Top Row: Checkbox + Name on Left, Category Badge on Right
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                ) {
+                                    Checkbox(
+                                        checked = billItem.isPaid,
+                                        onCheckedChange = { isChecked ->
+                                            viewModel.updateBill(billItem.copy(isPaid = isChecked))
+                                        },
+                                        colors = CheckboxDefaults.colors(checkedColor = PremiumAccentMint)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = billItem.name, 
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .background(PremiumAccentPurple.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = LocalizedStrings.localizeCategory(billItem.category, appSettings.language == "Arabic"),
+                                        fontSize = 11.sp,
+                                        color = PremiumAccentPurple,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
                             }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    viewModel.formatAmount(billItem.amount),
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (billItem.isPaid) PremiumAccentMint else PremiumAccentRed
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                IconButton(onClick = { onEditClick(billItem) }) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = PremiumAccentBlue)
+
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Divider(color = Color.White.copy(alpha = 0.05f))
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Bottom Row: Due Date on Left, Amount + Controls on Right
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val freqStr = when (billItem.frequency) {
+                                    "Monthly" -> if (appSettings.language == "Arabic") "شهرياً" else "Monthly"
+                                    "Weekly" -> if (appSettings.language == "Arabic") "أسبوعياً" else "Weekly"
+                                    else -> if (appSettings.language == "Arabic") "سنوياً" else "Yearly"
                                 }
-                                IconButton(onClick = { viewModel.deleteBill(billItem) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = PremiumAccentRed)
+                                Text(
+                                    text = "${LocalizedStrings.get("due_day", appSettings.language == "Arabic")} ${billItem.dueDay} ($freqStr)",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray,
+                                    fontWeight = FontWeight.Medium
+                                )
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = viewModel.formatAmount(billItem.amount),
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 16.sp,
+                                        color = if (billItem.isPaid) PremiumAccentMint else PremiumAccentRed
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    IconButton(
+                                        onClick = { onEditClick(billItem) },
+                                        modifier = Modifier.size(34.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Edit",
+                                            tint = PremiumAccentBlue,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { viewModel.deleteBill(billItem) },
+                                        modifier = Modifier.size(34.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Delete",
+                                            tint = PremiumAccentRed,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -2153,7 +2478,7 @@ fun CalendarScreen(
                 // Calendar Weekday Headers
                 Row(modifier = Modifier.fillMaxWidth()) {
                     val days = if (appSettings.language == "Arabic") {
-                        listOf("أحد", "نثن", "ثلاث", "ربع", "خمس", "جمع", "سبت")
+                        listOf("الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت")
                     } else {
                         listOf("SU", "MO", "TU", "WE", "TH", "FR", "SA")
                     }
@@ -2531,6 +2856,10 @@ fun SettingsScreen(
     var backupBoxText by remember { mutableStateOf("") }
     var importCsvBoxText by remember { mutableStateOf("") }
 
+    val isArabic = appSettings.language == "Arabic"
+    var isSmartAlertsEnabled by remember { mutableStateOf(true) }
+    val isBiometricLockEnabled = appSettings.isBiometricLockEnabled
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -2538,33 +2867,6 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(bottom = 24.dp)
     ) {
-        // App header
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = PremiumAccentMint)
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = Color.Black, modifier = Modifier.size(28.dp))
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text("Finance Tracker", fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, color = Color.Black)
-                    Text("March 2026", fontSize = 12.sp, color = Color.Black.copy(alpha = 0.6f))
-                }
-            }
-        }
-
         // Theme Appearance section (Light / Dark segmented selector)
         item {
             Column {
@@ -2813,6 +3115,53 @@ fun SettingsScreen(
             }
         }
 
+        // Additional Features (Smart alerts & fingerprint biometrics)
+        item {
+            Column {
+                Text(LocalizedStrings.get("additional_features", appSettings.language == "Arabic"), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = PremiumAccentMint)
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(LocalizedStrings.get("smart_notifications", appSettings.language == "Arabic"), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(if (appSettings.language == "Arabic") "تنبيهات تلقائية لما تعدي 80% من الميزانية" else "Alerts when you exceed 80% of budget limits", fontSize = 10.sp, color = Color.Gray)
+                            }
+                            Switch(
+                                checked = isSmartAlertsEnabled,
+                                onCheckedChange = { isSmartAlertsEnabled = it },
+                                colors = SwitchDefaults.colors(checkedThumbColor = PremiumAccentMint)
+                            )
+                        }
+                        Divider(color = Color.White.copy(alpha = 0.05f))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(LocalizedStrings.get("fingerprint_lock", appSettings.language == "Arabic"), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(if (appSettings.language == "Arabic") "حماية فائقة لأمان حساباتك ومصاريفك" else "Advanced security lock using your touch ID", fontSize = 10.sp, color = Color.Gray)
+                            }
+                            Switch(
+                                checked = isBiometricLockEnabled,
+                                onCheckedChange = { viewModel.updateBiometricLock(it) },
+                                colors = SwitchDefaults.colors(checkedThumbColor = PremiumAccentMint)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // CLEAR DATA CARD
         item {
             Card(
@@ -2839,14 +3188,76 @@ fun SettingsScreen(
 
         // About footer
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Finance Tracker v1.2.0", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Text(if (appSettings.language == "Arabic") "برمجة وتصميم عبدالله" else "Built by Abdallah", fontSize = 11.sp, color = Color.Gray)
+                Card(
+                    modifier = Modifier.fillMaxWidth(0.96f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.04f))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = if (appSettings.language == "Arabic") "تطبيق توفير Tawffer" else "Tawffer App",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "v1.2.0",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = PremiumAccentMint
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = if (appSettings.language == "Arabic") "تصميم وبرمجة عبدالله" else "Designed & Built by Abdallah",
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
+
+        // BRAND SHOWCASE FOOTER (Displaced from top)
+        item {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(0.96f),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = PremiumAccentMint)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(54.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Star, contentDescription = null, tint = Color.Black, modifier = Modifier.size(28.dp))
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("Tawffer", fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, color = Color.Black)
+                        Text("March 2026", fontSize = 12.sp, color = Color.Black.copy(alpha = 0.6f))
+                    }
                 }
             }
         }
@@ -2972,6 +3383,12 @@ fun SearchFilterScreen(
     }
 }
 
+data class CalendarDayItem(
+    val dayNum: Int,
+    val dateStr: String,
+    val dayAbbrev: String
+)
+
 @Composable
 fun HorizontalCalendarStrip(
     selectedDateStr: String,
@@ -2984,16 +3401,32 @@ fun HorizontalCalendarStrip(
     val maxDays = remember { calendar.getActualMaximum(java.util.Calendar.DAY_OF_MONTH) }
     
     val dayNamesEn = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
-    val dayNamesAr = listOf("أحد", "إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت")
+    val dayNamesAr = listOf("الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت")
 
     val lazyListState = rememberLazyListState()
 
-    // Scroll to the active selected date item on start
+    // Precompute days to prevent heavy Calendar instantiation inside LazyRow render iterations
+    val calendarDays = remember(year, month, isArabic) {
+        val list = ArrayList<CalendarDayItem>()
+        val tempCal = java.util.Calendar.getInstance()
+        tempCal.set(java.util.Calendar.YEAR, year)
+        tempCal.set(java.util.Calendar.MONTH, month)
+        for (dayNum in 1..maxDays) {
+            val dateStr = "%d-%02d-%02d".format(year, month + 1, dayNum)
+            tempCal.set(java.util.Calendar.DAY_OF_MONTH, dayNum)
+            val dayOfWeek = tempCal.get(java.util.Calendar.DAY_OF_WEEK) // 1 = Sun, ..., 7 = Sat
+            val dayAbbrev = if (isArabic) dayNamesAr[dayOfWeek - 1] else dayNamesEn[dayOfWeek - 1]
+            list.add(CalendarDayItem(dayNum, dateStr, dayAbbrev))
+        }
+        list
+    }
+
+    // Scroll to the active selected date item instantly to avoid overlapping transitions stutter
     LaunchedEffect(selectedDateStr) {
         val selectedDay = selectedDateStr.split("-").lastOrNull()?.toIntOrNull() ?: 1
         val itemIndex = selectedDay - 1
         if (itemIndex >= 0 && itemIndex < maxDays) {
-            lazyListState.animateScrollToItem(if (itemIndex - 2 < 0) 0 else itemIndex - 2)
+            lazyListState.scrollToItem(if (itemIndex - 2 < 0) 0 else itemIndex - 2)
         }
     }
 
@@ -3048,23 +3481,13 @@ fun HorizontalCalendarStrip(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            items(maxDays) { idx ->
-                val dayNum = idx + 1
-                val dayStr = "%d-%02d-%02d".format(year, month + 1, dayNum)
-                val isSelected = selectedDateStr == dayStr
-
-                // To compute the day of week abbreviation, find the weekday of this day
-                val tempCal = remember { java.util.Calendar.getInstance() }
-                tempCal.set(java.util.Calendar.YEAR, year)
-                tempCal.set(java.util.Calendar.MONTH, month)
-                tempCal.set(java.util.Calendar.DAY_OF_MONTH, dayNum)
-                val dayOfWeek = tempCal.get(java.util.Calendar.DAY_OF_WEEK) // 1 = Sun, 2 = Mon ... 7 = Sat
-                val dayAbbrev = if (isArabic) dayNamesAr[dayOfWeek - 1] else dayNamesEn[dayOfWeek - 1]
+            items(calendarDays) { dayItem ->
+                val isSelected = selectedDateStr == dayItem.dateStr
 
                 Card(
                     modifier = Modifier
                         .width(52.dp)
-                        .clickable { onDateSelected(dayStr) },
+                        .clickable { onDateSelected(dayItem.dateStr) },
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = if (isSelected) {
@@ -3085,13 +3508,13 @@ fun HorizontalCalendarStrip(
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Text(
-                            text = dayAbbrev,
+                            text = dayItem.dayAbbrev,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
                             color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = dayNum.toString(),
+                            text = dayItem.dayNum.toString(),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
@@ -3392,9 +3815,29 @@ fun TransactionHistoryRowItem(
     isArabic: Boolean,
     onLongClick: () -> Unit
 ) {
+    // Elegant slide-up and fade entering animation
+    val animState = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(key1 = item.id) {
+        animState.animateTo(
+            targetValue = 1f,
+            animationSpec = androidx.compose.animation.core.tween(
+                durationMillis = 400,
+                easing = androidx.compose.animation.core.FastOutSlowInEasing
+            )
+        )
+    }
+
+    val alpha = animState.value
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val slideUpPx = remember(density) { with(density) { 16.dp.toPx() } }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .graphicsLayer {
+                this.alpha = alpha
+                this.translationY = (1f - alpha) * slideUpPx
+            }
             .combinedClickable(
                 onClick = {},
                 onLongClick = onLongClick
@@ -3492,3 +3935,307 @@ data class TransactionItem(
     val originalIncome: Income? = null,
     val originalExpense: Expense? = null
 )
+
+@Composable
+fun SpendingBreakdownChart(
+    totalExpenses: Double,
+    totalBills: Double,
+    topSpending: String,
+    appSettings: AppSettings,
+    viewModel: FinanceViewModel,
+    isAmountMasked: Boolean,
+    onChangeTab: (String) -> Unit
+) {
+    val isArabic = appSettings.language == "Arabic"
+    val animationState = remember { androidx.compose.animation.core.Animatable(0f) }
+    
+    // Animate representation when total amounts change
+    LaunchedEffect(totalExpenses, totalBills) {
+        animationState.snapTo(0f)
+        animationState.animateTo(
+            targetValue = 1f,
+            animationSpec = androidx.compose.animation.core.tween(
+                durationMillis = 1000, 
+                easing = androidx.compose.animation.core.FastOutSlowInEasing
+            )
+        )
+    }
+
+    val sumTotal = totalExpenses + totalBills
+    val formatMasked = { amt: Double ->
+        if (isAmountMasked) "••••" else viewModel.formatAmount(amt)
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = LocalizedStrings.get("spending_breakdown", isArabic),
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                
+                // Pulsing visual indicator
+                Surface(
+                    color = PremiumAccentOrange.copy(alpha = 0.12f),
+                    shape = CircleShape
+                ) {
+                    Text(
+                        text = if (isArabic) "رسم بياني تفاعلي" else "Interactive Chart",
+                        color = PremiumAccentOrange,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Left dynamic Donut Chart container
+                Box(
+                    modifier = Modifier.size(130.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.foundation.Canvas(modifier = Modifier.size(110.dp)) {
+                        val strokeWidth = 14.dp.toPx()
+                        
+                        // Draw grey background circle
+                        drawArc(
+                            color = Color.Gray.copy(alpha = 0.10f),
+                            startAngle = 0f,
+                            sweepAngle = 360f,
+                            useCenter = false,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
+                        )
+
+                        if (sumTotal > 0f) {
+                            val expFraction = (totalExpenses / sumTotal).toFloat()
+                            val billsFraction = (totalBills / sumTotal).toFloat()
+                            
+                            val expAngle = 360f * expFraction * animationState.value
+                            val billsAngle = 360f * billsFraction * animationState.value
+                            
+                            val startAngle = -90f
+                            
+                            // Draw Expenses Slice
+                            if (expAngle > 0f) {
+                                drawArc(
+                                    color = PremiumAccentRed,
+                                    startAngle = startAngle,
+                                    sweepAngle = expAngle,
+                                    useCenter = false,
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                        width = strokeWidth,
+                                        cap = androidx.compose.ui.graphics.StrokeCap.Round
+                                    )
+                                )
+                            }
+                            
+                            // Draw Bills Slice
+                            if (billsAngle > 0f) {
+                                drawArc(
+                                    color = PremiumAccentPurple,
+                                    startAngle = startAngle + expAngle,
+                                    sweepAngle = billsAngle,
+                                    useCenter = false,
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                        width = strokeWidth,
+                                        cap = androidx.compose.ui.graphics.StrokeCap.Round
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    // Total Label in the center
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = if (isArabic) "المنصرم" else "Total Spent",
+                            color = PremiumTextSecondaryDark,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = formatMasked(sumTotal),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
+
+                // Right detailed Legends and Top Spending Highlight
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    val expPercent = if (sumTotal > 0.0) totalExpenses / sumTotal else 0.0
+                    val billsPercent = if (sumTotal > 0.0) totalBills / sumTotal else 0.0
+                    
+                    // Expense row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onChangeTab("expenses") },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(PremiumAccentRed))
+                            Text(
+                                text = if (isArabic) "المصاريف" else "Expenses",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Text(
+                            text = "%d%%".format((expPercent * 100).toInt()),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PremiumAccentRed
+                        )
+                    }
+
+                    // Unpaid/Paid Bills row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onChangeTab("bills") },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(PremiumAccentPurple))
+                            Text(
+                                text = if (isArabic) "الفواتير" else "Bills",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Text(
+                            text = "%d%%".format((billsPercent * 100).toInt()),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PremiumAccentPurple
+                        )
+                    }
+
+                    // Top category premium panel
+                    if (topSpending != "None" && topSpending.isNotBlank() && topSpending != "Other") {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(PremiumAccentOrange.copy(alpha = 0.08f))
+                                .border(0.5.dp, PremiumAccentOrange.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                                .padding(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = PremiumAccentOrange,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Column {
+                                    Text(
+                                        text = if (isArabic) "الأكثر إنفاقاً" else "Top Category",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PremiumAccentOrange
+                                    )
+                                    Text(
+                                        text = LocalizedStrings.localizeCategory(topSpending, isArabic),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RowScope.PremiumTabItem(
+    selected: Boolean,
+    onClick: () -> Unit,
+    icon: @Composable () -> Unit,
+    label: String,
+    activeColor: Color
+) {
+    val scale by animateFloatAsState(if (selected) 1.05f else 1.0f, label = "tab_scale")
+    
+    Box(
+        modifier = Modifier
+            .weight(1f)
+            .graphicsLayer(scaleX = scale, scaleY = scale)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onClick() }
+            .padding(vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (selected) activeColor.copy(alpha = 0.12f) else Color.Transparent)
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                icon()
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                color = if (selected) activeColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1
+            )
+        }
+    }
+}

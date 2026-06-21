@@ -37,6 +37,14 @@ class FinanceViewModel(
     private val _operationalLog = MutableStateFlow<String?>(null)
     val operationalLog: StateFlow<String?> = _operationalLog.asStateFlow()
 
+    // Secure Balance Visibility State
+    private val _isBalanceHidden = MutableStateFlow(false)
+    val isBalanceHidden: StateFlow<Boolean> = _isBalanceHidden.asStateFlow()
+
+    fun toggleBalanceHidden() {
+        _isBalanceHidden.value = !_isBalanceHidden.value
+    }
+
     init {
         // Automatically fetch insights on startup or user requests
         viewModelScope.launch {
@@ -318,6 +326,15 @@ class FinanceViewModel(
             )
             // Re-fetch insights if language/currency changed
             refreshAiInsights()
+        }
+    }
+
+    fun updateBiometricLock(enabled: Boolean) {
+        viewModelScope.launch {
+            val currentSettings = settings.value
+            repository.insertSettings(
+                currentSettings.copy(isBiometricLockEnabled = enabled)
+            )
         }
     }
 
