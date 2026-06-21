@@ -4,6 +4,8 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -54,9 +56,18 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
     val totalBills by viewModel.totalBills.collectAsState()
     val totalGoalsSaved by viewModel.totalGoalsSaved.collectAsState()
     val netBalance by viewModel.netBalance.collectAsState()
+    val unpaidBillsAmount by viewModel.unpaidBillsAmount.collectAsState()
     val netWorth by viewModel.netWorth.collectAsState()
     val healthScore by viewModel.financialHealthScore.collectAsState()
     val topSpendingCategory by viewModel.topSpendingCategory.collectAsState()
+
+    // Active custom date selectors for easy logging
+    val todayDateStr = remember {
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        sdf.format(java.util.Date())
+    }
+    var selectedIncomeDate by remember { mutableStateOf(todayDateStr) }
+    var selectedExpenseDate by remember { mutableStateOf(todayDateStr) }
 
     // Observe AI Advisor
     val aiInsight by viewModel.aiInsight.collectAsState()
@@ -228,6 +239,7 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                             totalBills = totalBills,
                             totalGoalsSaved = totalGoalsSaved,
                             netBalance = netBalance,
+                            unpaidBillsAmount = unpaidBillsAmount,
                             netWorth = netWorth,
                             healthScore = healthScore,
                             topSpending = topSpendingCategory,
@@ -241,6 +253,8 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                             viewModel = viewModel,
                             incomes = incomes,
                             appSettings = appSettings,
+                            selectedDateStr = selectedIncomeDate,
+                            onDateSelected = { selectedIncomeDate = it },
                             onAddClick = { showAddIncome = true },
                             onEditClick = { activeIncomeToEdit = it }
                         )
@@ -249,6 +263,8 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                             expenses = expenses,
                             customCategories = customCategories,
                             appSettings = appSettings,
+                            selectedDateStr = selectedExpenseDate,
+                            onDateSelected = { selectedExpenseDate = it },
                             onAddClick = { showAddExpense = true },
                             onEditClick = { activeExpenseToEdit = it }
                         )
@@ -546,7 +562,11 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                     var selectedCategory by remember { mutableStateOf(editItem?.category ?: "Salary") }
                     var isRecurring by remember { mutableStateOf(editItem?.isRecurring ?: false) }
                     var notes by remember { mutableStateOf(editItem?.notes ?: "") }
-                    var dateStr by remember { mutableStateOf(editItem?.let { viewModel.formatTimestampToDate(it.timestamp) } ?: "2026-03-28") }
+                    var dateStr by remember { mutableStateOf(editItem?.let { viewModel.formatTimestampToDate(it.timestamp) } ?: selectedIncomeDate) }
+
+                    val isAmountError = amount.isNotEmpty() && (amount.toDoubleOrNull() == null || amount.toDouble() <= 0.0)
+                    val isNameError = name.isNotEmpty() && name.isBlank()
+                    val isFormValid = name.isNotBlank() && amount.isNotEmpty() && !isAmountError
 
                     val incomeCategories = listOf("Salary", "Freelance", "Investment", "Rental", "Business", "Bonus", "Pension", "Dividends", "Royalties", "Commission", "Side Income", "Other")
 
@@ -566,12 +586,14 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                                         value = name,
                                         onValueChange = { name = it },
                                         label = { Text(LocalizedStrings.get("name", appSettings.language == "Arabic")) },
+                                        isError = isNameError,
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                     OutlinedTextField(
                                         value = amount,
                                         onValueChange = { amount = it },
                                         label = { Text(LocalizedStrings.get("amount", appSettings.language == "Arabic")) },
+                                        isError = isAmountError,
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         modifier = Modifier.fillMaxWidth()
                                     )
@@ -623,8 +645,9 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                                     showAddIncome = false
                                     activeIncomeToEdit = null
                                 },
+                                enabled = isFormValid,
                                 colors = ButtonDefaults.buttonColors(containerColor = PremiumAccentMint)
-                            ) { Text(if (editItem != null) (if (appSettings.language == "Arabic") "تعديل" else "Update") else (if (appSettings.language == "Arabic") "حفظ" else "Save")) }
+                             ) { Text(if (editItem != null) (if (appSettings.language == "Arabic") "تعديل" else "Update") else (if (appSettings.language == "Arabic") "حفظ" else "Save")) }
                         },
                         dismissButton = {
                             TextButton(
@@ -644,7 +667,11 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                     var amount by remember { mutableStateOf(editItem?.amount?.toString() ?: "") }
                     var selectedCategory by remember { mutableStateOf(editItem?.category ?: "Food") }
                     var notes by remember { mutableStateOf(editItem?.notes ?: "") }
-                    var dateStr by remember { mutableStateOf(editItem?.let { viewModel.formatTimestampToDate(it.timestamp) } ?: "2026-03-28") }
+                    var dateStr by remember { mutableStateOf(editItem?.let { viewModel.formatTimestampToDate(it.timestamp) } ?: selectedExpenseDate) }
+
+                    val isAmountError = amount.isNotEmpty() && (amount.toDoubleOrNull() == null || amount.toDouble() <= 0.0)
+                    val isNameError = name.isNotEmpty() && name.isBlank()
+                    val isFormValid = name.isNotBlank() && amount.isNotEmpty() && !isAmountError
 
                     val standardCategories = listOf("Food", "Transport", "Housing", "Health", "Fun", "Shopping", "Utilities", "Education", "Other")
                     val expenseCategories = standardCategories + customCategories.map { it.name }
@@ -665,12 +692,14 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                                         value = name,
                                         onValueChange = { name = it },
                                         label = { Text(LocalizedStrings.get("name", appSettings.language == "Arabic")) },
+                                        isError = isNameError,
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                     OutlinedTextField(
                                         value = amount,
                                         onValueChange = { amount = it },
                                         label = { Text(LocalizedStrings.get("amount", appSettings.language == "Arabic")) },
+                                        isError = isAmountError,
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         modifier = Modifier.fillMaxWidth()
                                     )
@@ -687,12 +716,6 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                                             )
                                         }
                                     }
-                                    OutlinedTextField(
-                                        value = dateStr,
-                                        onValueChange = { dateStr = it },
-                                        label = { Text(LocalizedStrings.get("date", appSettings.language == "Arabic") + " (YYYY-MM-DD)") },
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
                                     OutlinedTextField(
                                         value = notes,
                                         onValueChange = { notes = it },
@@ -714,6 +737,7 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                                     showAddExpense = false
                                     activeExpenseToEdit = null
                                 },
+                                enabled = isFormValid,
                                 colors = ButtonDefaults.buttonColors(containerColor = PremiumAccentRed)
                             ) { Text(if (editItem != null) (if (appSettings.language == "Arabic") "تعديل" else "Update") else (if (appSettings.language == "Arabic") "حفظ" else "Save")) }
                         },
@@ -738,6 +762,11 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                     var selectedCategory by remember { mutableStateOf(editItem?.category ?: "Housing") }
                     var notes by remember { mutableStateOf(editItem?.notes ?: "") }
 
+                    val isAmountError = amount.isNotEmpty() && (amount.toDoubleOrNull() == null || amount.toDouble() <= 0.0)
+                    val isNameError = name.isNotEmpty() && name.isBlank()
+                    val isDueDayError = dueDay.isNotEmpty() && (dueDay.toIntOrNull() == null || dueDay.toInt() < 1 || dueDay.toInt() > 31)
+                    val isFormValid = name.isNotBlank() && amount.isNotEmpty() && !isAmountError && !isDueDayError
+
                     val billCategories = listOf("Housing", "Utilities", "Internet", "Phone", "Insurance", "Streaming", "Gym", "Subscription", "Transport", "Education", "Medical", "Food", "Savings", "Loan", "Tax", "Other")
 
                     AlertDialog(
@@ -756,12 +785,14 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                                         value = name,
                                         onValueChange = { name = it },
                                         label = { Text(LocalizedStrings.get("name", appSettings.language == "Arabic")) },
+                                        isError = isNameError,
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                     OutlinedTextField(
                                         value = amount,
                                         onValueChange = { amount = it },
                                         label = { Text(LocalizedStrings.get("amount", appSettings.language == "Arabic")) },
+                                        isError = isAmountError,
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         modifier = Modifier.fillMaxWidth()
                                     )
@@ -788,6 +819,7 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                                         value = dueDay,
                                         onValueChange = { dueDay = it },
                                         label = { Text(if (appSettings.language == "Arabic") "يوم الدفع في الشهر" else "Due Day of Month") },
+                                        isError = isDueDayError,
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         modifier = Modifier.fillMaxWidth()
                                     )
@@ -826,6 +858,7 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                                     showAddBill = false
                                     activeBillToEdit = null
                                 },
+                                enabled = isFormValid,
                                 colors = ButtonDefaults.buttonColors(containerColor = PremiumAccentPurple)
                             ) { Text(if (editItem != null) (if (appSettings.language == "Arabic") "تعديل" else "Update") else (if (appSettings.language == "Arabic") "حفظ" else "Save")) }
                         },
@@ -849,6 +882,10 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                     var selectedColor by remember { mutableStateOf(colorPalette.first()) }
                     var selectedIcon by remember { mutableStateOf("ic_star") }
 
+                    val isAmountError = targetAmount.isNotEmpty() && (targetAmount.toDoubleOrNull() == null || targetAmount.toDouble() <= 0.0)
+                    val isNameError = name.isNotEmpty() && name.isBlank()
+                    val isFormValid = name.isNotBlank() && targetAmount.isNotEmpty() && !isAmountError
+
                     AlertDialog(
                         onDismissRequest = { showAddGoal = false },
                         title = { Text(LocalizedStrings.get("add_goal", appSettings.language == "Arabic"), fontWeight = FontWeight.Bold) },
@@ -862,12 +899,14 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                                         value = name,
                                         onValueChange = { name = it },
                                         label = { Text(if (appSettings.language == "Arabic") "إسم الهدف المالي" else "Goal Name") },
+                                        isError = isNameError,
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                     OutlinedTextField(
                                         value = targetAmount,
                                         onValueChange = { targetAmount = it },
                                         label = { Text(if (appSettings.language == "Arabic") "المبلغ المستهدف" else "Target Amount") },
+                                        isError = isAmountError,
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         modifier = Modifier.fillMaxWidth()
                                     )
@@ -932,6 +971,7 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                                     viewModel.addGoal(name, amtVal, deadline, selectedColor, selectedIcon, "")
                                     showAddGoal = false
                                 },
+                                enabled = isFormValid,
                                 colors = ButtonDefaults.buttonColors(containerColor = PremiumAccentMint)
                             ) { Text(LocalizedStrings.get("add_goal", appSettings.language == "Arabic")) }
                         },
@@ -945,6 +985,9 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                 if (activeGoalToFund != null) {
                     val goal = activeGoalToFund!!
                     var addAmtInput by remember { mutableStateOf("") }
+                    val isFundAmountError = addAmtInput.isNotEmpty() && (addAmtInput.toDoubleOrNull() == null || addAmtInput.toDouble() <= 0.0)
+                    val isFundFormValid = addAmtInput.isNotEmpty() && !isFundAmountError
+
                     AlertDialog(
                         onDismissRequest = { activeGoalToFund = null },
                         title = {
@@ -980,6 +1023,7 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                                     value = addAmtInput,
                                     onValueChange = { addAmtInput = it },
                                     label = { Text(if (appSettings.language == "Arabic") "أضف مبلغ محوش جديد" else "Log Savable Amount") },
+                                    isError = isFundAmountError,
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -992,6 +1036,7 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                                     viewModel.saveGoalAmount(goal, amtVal)
                                     activeGoalToFund = null
                                 },
+                                enabled = isFundFormValid,
                                 colors = ButtonDefaults.buttonColors(containerColor = PremiumAccentMint)
                             ) { Text(if (appSettings.language == "Arabic") "تأكيد الإدخار" else "Add Savings") }
                         },
@@ -1014,6 +1059,7 @@ fun OverviewScreen(
     totalBills: Double,
     totalGoalsSaved: Double,
     netBalance: Double,
+    unpaidBillsAmount: Double,
     netWorth: Double,
     healthScore: Int,
     topSpending: String,
@@ -1188,11 +1234,11 @@ fun OverviewScreen(
                     Row(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(LocalizedStrings.get("assets", appSettings.language == "Arabic"), fontSize = 11.sp, color = PremiumTextSecondaryDark)
-                            Text(viewModel.formatAmount(totalIncome + totalGoalsSaved), fontWeight = FontWeight.Bold, color = PremiumAccentMint)
+                            Text(viewModel.formatAmount(netBalance), fontWeight = FontWeight.Bold, color = PremiumAccentMint)
                         }
                         Column(modifier = Modifier.weight(1f)) {
                             Text(LocalizedStrings.get("liabilities", appSettings.language == "Arabic"), fontSize = 11.sp, color = PremiumTextSecondaryDark)
-                            Text(viewModel.formatAmount(totalExpenses + totalBills), fontWeight = FontWeight.Bold, color = PremiumAccentRed)
+                            Text(viewModel.formatAmount(unpaidBillsAmount), fontWeight = FontWeight.Bold, color = PremiumAccentRed)
                         }
                     }
                 }
@@ -1418,6 +1464,8 @@ fun IncomeScreen(
     viewModel: FinanceViewModel,
     incomes: List<Income>,
     appSettings: AppSettings,
+    selectedDateStr: String,
+    onDateSelected: (String) -> Unit,
     onAddClick: () -> Unit,
     onEditClick: (Income) -> Unit
 ) {
@@ -1455,6 +1503,13 @@ fun IncomeScreen(
                 )
             }
         }
+
+        // Horizontal Scrollable Calendar Strip for easy logging
+        HorizontalCalendarStrip(
+            selectedDateStr = selectedDateStr,
+            onDateSelected = onDateSelected,
+            isArabic = appSettings.language == "Arabic"
+        )
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1531,6 +1586,8 @@ fun ExpensesScreen(
     expenses: List<Expense>,
     customCategories: List<CustomCategory>,
     appSettings: AppSettings,
+    selectedDateStr: String,
+    onDateSelected: (String) -> Unit,
     onAddClick: () -> Unit,
     onEditClick: (Expense) -> Unit
 ) {
@@ -1578,6 +1635,13 @@ fun ExpensesScreen(
                 )
             }
         }
+
+        // Horizontal Scrollable Calendar Strip for easy logging
+        HorizontalCalendarStrip(
+            selectedDateStr = selectedDateStr,
+            onDateSelected = onDateSelected,
+            isArabic = appSettings.language == "Arabic"
+        )
 
         // Interactive Categories chip filter row (All, Food, Housing, etc.)
         Text(LocalizedStrings.get("by_category", appSettings.language == "Arabic"), fontWeight = FontWeight.Bold, fontSize = 14.sp)
@@ -2182,14 +2246,30 @@ fun GoalsScreen(
                                         }
                                     }
                                 }
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(PremiumAccentMint.copy(alpha = 0.15f))
-                                        .clickable { onFundClick(goalItem) }
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text(if (appSettings.language == "Arabic") "+ حوّش" else "+ Fund", fontSize = 11.sp, fontWeight = FontWeight.Black, color = PremiumAccentMint)
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(PremiumAccentMint.copy(alpha = 0.15f))
+                                            .clickable { onFundClick(goalItem) }
+                                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(if (appSettings.language == "Arabic") "+ حوّش" else "+ Fund", fontSize = 11.sp, fontWeight = FontWeight.Black, color = PremiumAccentMint)
+                                    }
+                                    IconButton(
+                                        onClick = { viewModel.deleteGoal(goalItem) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Delete Goal",
+                                            tint = PremiumAccentRed.copy(alpha = 0.8f),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
                             }
                             Spacer(modifier = Modifier.height(14.dp))
@@ -2672,6 +2752,137 @@ fun SearchFilterScreen(
                                 IconButton(onClick = { viewModel.deleteExpense(item) }) { Icon(Icons.Default.Delete, contentDescription = null, tint = PremiumAccentRed) }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HorizontalCalendarStrip(
+    selectedDateStr: String,
+    onDateSelected: (String) -> Unit,
+    isArabic: Boolean
+) {
+    val calendar = remember { java.util.Calendar.getInstance() }
+    val year = remember { calendar.get(java.util.Calendar.YEAR) }
+    val month = remember { calendar.get(java.util.Calendar.MONTH) } // 0-indexed
+    val maxDays = remember { calendar.getActualMaximum(java.util.Calendar.DAY_OF_MONTH) }
+    
+    val dayNamesEn = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+    val dayNamesAr = listOf("أحد", "إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت")
+
+    val lazyListState = rememberLazyListState()
+
+    // Scroll to the active selected date item on start
+    LaunchedEffect(selectedDateStr) {
+        val selectedDay = selectedDateStr.split("-").lastOrNull()?.toIntOrNull() ?: 1
+        val itemIndex = selectedDay - 1
+        if (itemIndex >= 0 && itemIndex < maxDays) {
+            lazyListState.animateScrollToItem(if (itemIndex - 2 < 0) 0 else itemIndex - 2)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (isArabic) "اضغط لاختيار يوم التسجيل:" else "Tap to choose transaction day:",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+            // Show selected date badge
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Text(
+                        text = selectedDateStr,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+        }
+
+        LazyRow(
+            state = lazyListState,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(maxDays) { idx ->
+                val dayNum = idx + 1
+                val dayStr = "%d-%02d-%02d".format(year, month + 1, dayNum)
+                val isSelected = selectedDateStr == dayStr
+
+                // To compute the day of week abbreviation, find the weekday of this day
+                val tempCal = remember { java.util.Calendar.getInstance() }
+                tempCal.set(java.util.Calendar.YEAR, year)
+                tempCal.set(java.util.Calendar.MONTH, month)
+                tempCal.set(java.util.Calendar.DAY_OF_MONTH, dayNum)
+                val dayOfWeek = tempCal.get(java.util.Calendar.DAY_OF_WEEK) // 1 = Sun, 2 = Mon ... 7 = Sat
+                val dayAbbrev = if (isArabic) dayNamesAr[dayOfWeek - 1] else dayNamesEn[dayOfWeek - 1]
+
+                Card(
+                    modifier = Modifier
+                        .width(52.dp)
+                        .clickable { onDateSelected(dayStr) },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isSelected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+                        }
+                    ),
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 1.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(vertical = 8.dp).fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = dayAbbrev,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = dayNum.toString(),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 }
             }

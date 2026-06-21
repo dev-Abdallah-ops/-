@@ -97,10 +97,11 @@ class FinanceViewModel(
     val netBalance = combine(totalIncome, totalExpenses) { inc, exp -> inc - exp }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
-    val netWorth = combine(totalIncome, totalGoalsSaved, totalExpenses, totalBills) { inc, gs, exp, b ->
-        val assets = inc + gs
-        val liabilities = exp + b
-        assets - liabilities
+    val unpaidBillsAmount = bills.map { list -> list.filter { !it.isPaid }.sumOf { it.amount } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
+    val netWorth = combine(netBalance, unpaidBillsAmount) { balance, unpaid ->
+        balance - unpaid
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
     val topSpendingCategory = expenses.map { list ->
