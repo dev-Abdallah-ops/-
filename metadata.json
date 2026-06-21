@@ -1,0 +1,6 @@
+{
+  "name": "Finance Tracker",
+  "description": "A personal finance mobile app providing intelligent financial insights.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
