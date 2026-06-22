@@ -2,15 +2,36 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
+// Global state to track theme mode dynamically on the UI Thread
+var isDarkThemeGlobal: Boolean = true
+
 // Premium Dark Slate FinTech Palette
 val PremiumDeepDark = Color(0xFF0B0F19)
 val PremiumElevatedDark = Color(0xFF151D30)
 val PremiumCardDark = Color(0xFF1E2942)
-val PremiumAccentMint = Color(0xFF10B981) // Vibrant emerald green from Page 1 & 2
-val PremiumAccentRed = Color(0xFFEF4444)  // Warning red / expenses crimson from Page 15
-val PremiumAccentPurple = Color(0xFF8B5CF6) // Bill violet from Page 5
-val PremiumAccentBlue = Color(0xFF3B82F6)   // Goal/Calendar sky-blue
-val PremiumAccentOrange = Color(0xFFF59E0B) // Warning yellow/amber
+
+// Static Base Accents for static configurations (e.g. Schemes)
+val BasePremiumAccentMint = Color(0xFF10B981)
+val BasePremiumAccentRed = Color(0xFFEF4444)
+val BasePremiumAccentPurple = Color(0xFF8B5CF6)
+val BasePremiumAccentBlue = Color(0xFF3B82F6)
+val BasePremiumAccentOrange = Color(0xFFF59E0B)
+
+val PremiumAccentMint: Color
+    get() = if (isDarkThemeGlobal) BasePremiumAccentMint else Color(0xFF047857) // Darkened radiant green for Light contrast
+
+val PremiumAccentRed: Color
+    get() = if (isDarkThemeGlobal) BasePremiumAccentRed else Color(0xFFDC2626)  // Darkened warning red for Light contrast
+
+val PremiumAccentPurple: Color
+    get() = if (isDarkThemeGlobal) BasePremiumAccentPurple else Color(0xFF6D28D9) // Darkened bill purple for Light contrast
+
+val PremiumAccentBlue: Color
+    get() = if (isDarkThemeGlobal) BasePremiumAccentBlue else Color(0xFF1D4ED8)   // Darkened sky blue for Light contrast
+
+val PremiumAccentOrange: Color
+    get() = if (isDarkThemeGlobal) BasePremiumAccentOrange else Color(0xFFC2410C) // Darkened yellow/amber for Light contrast
+
 val PremiumTextSecondaryDark = Color(0xFF94A3B8) // Slate gray for secondary details
 
 // Premium Light Slate Palette

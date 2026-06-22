@@ -8,9 +8,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
-    primary = PremiumAccentMint,
+    primary = BasePremiumAccentMint,
     onPrimary = Color.Black,
-    secondary = PremiumAccentBlue,
+    secondary = BasePremiumAccentBlue,
     onSecondary = Color.White,
     background = PremiumDeepDark,
     surface = PremiumElevatedDark,
@@ -19,7 +19,7 @@ private val DarkColorScheme = darkColorScheme(
     surfaceVariant = Color(0xFF1E2942),
     onSurfaceVariant = Color(0xFF94A3B8),
     outline = Color(0xFF334155),
-    error = PremiumAccentRed
+    error = BasePremiumAccentRed
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -47,6 +47,7 @@ fun MyApplicationTheme(
         "Dark" -> true
         else -> isSystemInDarkTheme()
     }
+    isDarkThemeGlobal = darkTheme
 
     val colors = if (darkTheme) DarkColorScheme else LightColorScheme
 

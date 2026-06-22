@@ -338,6 +338,15 @@ class FinanceViewModel(
         }
     }
 
+    fun updateBackupPin(pin: String) {
+        viewModelScope.launch {
+            val currentSettings = settings.value
+            repository.insertSettings(
+                currentSettings.copy(backupPin = pin)
+            )
+        }
+    }
+
     // Custom Category
     fun addCustomCategory(name: String, colorHex: String, iconName: String) {
         viewModelScope.launch {

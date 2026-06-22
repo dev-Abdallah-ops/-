@@ -38,6 +38,37 @@ import com.example.data.*
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
 
+fun getCategoryIconAndColor(category: String, isIncome: Boolean): Pair<String, Color> {
+    return if (isIncome) {
+        when (category) {
+            "Salary" -> Pair("💼", Color(0xFF8B5A2B))
+            "Freelance" -> Pair("💰", Color(0xFFEAB308))
+            "Investment" -> Pair("📈", Color(0xFF10B981))
+            "Rental" -> Pair("🏠", Color(0xFF3B82F6))
+            "Business" -> Pair("🏢", Color(0xFF6B7280))
+            "Bonus" -> Pair("🎁", Color(0xFFEC4899))
+            "Pension" -> Pair("👴", Color(0xFF84CC16))
+            "Dividends" -> Pair("🪙", Color(0xFFF59E0B))
+            "Royalties" -> Pair("👑", Color(0xFF8B5CF6))
+            "Commission" -> Pair("🤝", Color(0xFF06B6D4))
+            "Side Income" -> Pair("⚡", Color(0xFF14B8A6))
+            else -> Pair("💵", Color(0xFF10B981))
+        }
+    } else {
+        when (category) {
+            "Food" -> Pair("🍔", Color(0xFFFFB067))
+            "Transport" -> Pair("🚗", Color(0xFF93C5FD))
+            "Housing" -> Pair("🏠", Color(0xFFFDBA74))
+            "Healthcare", "Health" -> Pair("🩺", Color(0xFFFCA5A5))
+            "Entertainment", "Fun" -> Pair("🍿", Color(0xFFC4B5FD))
+            "Shopping" -> Pair("🛍️", Color(0xFFF472B6))
+            "Utilities" -> Pair("💡", Color(0xFFFDE047))
+            "Education" -> Pair("📚", Color(0xFFA5F3FC))
+            else -> Pair("💸", Color(0xFF94A3B8))
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FinanceAppUI(viewModel: FinanceViewModel) {
@@ -115,6 +146,9 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
     var showBiometricAuthPrompt by remember { mutableStateOf(false) }
     var isScanning by remember { mutableStateOf(false) }
     var scanSuccess by remember { mutableStateOf(false) }
+    var showBackupPinPrompt by remember { mutableStateOf(false) }
+    var enteredPin by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf(false) }
 
     val executor = remember { context.mainExecutor }
     fun triggerRealBiometricPrompt() {
@@ -130,7 +164,7 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                         executor,
                         { _, _ ->
                             activity.runOnUiThread {
-                                isAppUnlocked = true
+                                showBackupPinPrompt = true
                                 showBiometricAuthPrompt = false
                             }
                         }
@@ -180,87 +214,280 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                     .padding(24.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxHeight().padding(vertical = 48.dp)
-                ) {
+                if (showBackupPinPrompt) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(top = 32.dp)
+                        verticalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxHeight().padding(vertical = 24.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(80.dp)
-                                .clip(CircleShape)
-                                .background(PremiumAccentMint.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(top = 16.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = null,
-                                tint = PremiumAccentMint,
-                                modifier = Modifier.size(42.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Tawffer",
-                            fontWeight = FontWeight.Black,
-                            fontSize = 32.sp,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = if (isArabic) "وفّر أكتر مع لمسة أمان ذكية" else "Save more with smart, secure touches",
-                            fontSize = 12.sp,
-                            color = Color.Gray,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                    }
-
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .clickable {
-                                isScanning = false
-                                scanSuccess = false
-                                triggerRealBiometricPrompt()
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(CircleShape)
+                                    .background(PremiumAccentPurple.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = PremiumAccentPurple,
+                                    modifier = Modifier.size(28.dp)
+                                )
                             }
-                            .padding(16.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(96.dp)
-                                .clip(CircleShape)
-                                .background(PremiumAccentMint.copy(alpha = 0.1f))
-                                .border(1.5.dp, PremiumAccentMint, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = "Unlock App",
-                                tint = PremiumAccentMint,
-                                modifier = Modifier.size(42.dp)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = if (isArabic) "رمز المرور الاحتياطي" else "Backup Passcode",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (isArabic) "يرجى إدخال الرمز المكون من 4 أرقام لتخطي البصمة" else "Enter the 4-digit PIN to bypass biometric authentication",
+                                fontSize = 12.sp,
+                                color = Color.Gray,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 16.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = if (isArabic) "اضغط هنا لفتح التطبيق بالبصمة" else "Tap to unlock Tawffer",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = PremiumAccentMint
-                        )
-                    }
 
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = if (isArabic) "البيانات مشفرة ومحميّة بالكامل على جهازك" else "Data is fully encrypted and locally stored on your device",
-                            fontSize = 11.sp,
-                            color = Color.Gray.copy(alpha = 0.7f),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                repeat(4) { idx ->
+                                    val isFilled = enteredPin.length > idx
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (pinError) PremiumAccentRed 
+                                                else if (isFilled) PremiumAccentPurple 
+                                                else MaterialTheme.colorScheme.surfaceVariant
+                                            )
+                                            .border(
+                                                width = 1.5.dp,
+                                                color = if (pinError) PremiumAccentRed 
+                                                       else if (isFilled) PremiumAccentPurple 
+                                                       else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                                                shape = CircleShape
+                                            )
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            if (pinError) {
+                                Text(
+                                    text = if (isArabic) "رمز مرور خاطئ! يرجى المحاولة مجددًا" else "Incorrect PIN! Please try again.",
+                                    color = PremiumAccentRed,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+                        }
+
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        ) {
+                            val keypadRows = listOf(
+                                listOf("1", "2", "3"),
+                                listOf("4", "5", "6"),
+                                listOf("7", "8", "9")
+                            )
+
+                            keypadRows.forEach { row ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                    row.forEach { digit ->
+                                        Box(
+                                            modifier = Modifier
+                                                .size(64.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                                                .clickable {
+                                                    if (enteredPin.length < 4) {
+                                                        pinError = false
+                                                        enteredPin += digit
+                                                        if (enteredPin.length == 4) {
+                                                            if (enteredPin == appSettings.backupPin) {
+                                                                isAppUnlocked = true
+                                                                showBackupPinPrompt = false
+                                                                enteredPin = ""
+                                                            } else {
+                                                                pinError = true
+                                                                enteredPin = ""
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(digit, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                                        }
+                                    }
+                                }
+                            }
+
+                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+                                        .clickable {
+                                            enteredPin = ""
+                                            pinError = false
+                                            showBackupPinPrompt = false
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Go Back/Cancel",
+                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                                    )
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                                        .clickable {
+                                            if (enteredPin.length < 4) {
+                                                pinError = false
+                                                enteredPin += "0"
+                                                if (enteredPin.length == 4) {
+                                                    if (enteredPin == appSettings.backupPin) {
+                                                        isAppUnlocked = true
+                                                        showBackupPinPrompt = false
+                                                        enteredPin = ""
+                                                    } else {
+                                                        pinError = true
+                                                        enteredPin = ""
+                                                    }
+                                                }
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("0", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+                                        .clickable {
+                                            if (enteredPin.isNotEmpty()) {
+                                                enteredPin = enteredPin.dropLast(1)
+                                                pinError = false
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Delete last",
+                                        tint = PremiumAccentRed.copy(alpha = 0.8f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxHeight().padding(vertical = 48.dp)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(top = 32.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .clip(CircleShape)
+                                    .background(PremiumAccentMint.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = PremiumAccentMint,
+                                    modifier = Modifier.size(42.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Tawffer",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 32.sp,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = if (isArabic) "وفّر أكتر مع لمسة أمان ذكية" else "Save more with smart, secure touches",
+                                fontSize = 12.sp,
+                                color = Color.Gray,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable {
+                                    isScanning = false
+                                    scanSuccess = false
+                                    triggerRealBiometricPrompt()
+                                }
+                                .padding(16.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(96.dp)
+                                    .clip(CircleShape)
+                                    .background(PremiumAccentMint.copy(alpha = 0.1f))
+                                    .border(1.5.dp, PremiumAccentMint, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = "Unlock App",
+                                    tint = PremiumAccentMint,
+                                    modifier = Modifier.size(42.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = if (isArabic) "اضغط هنا لفتح التطبيق بالبصمة" else "Tap to unlock Tawffer",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = PremiumAccentMint
+                            )
+                        }
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = if (isArabic) "البيانات مشفرة ومحميّة بالكامل على جهازك" else "Data is fully encrypted and locally stored on your device",
+                                fontSize = 11.sp,
+                                color = Color.Gray.copy(alpha = 0.7f),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
@@ -395,9 +622,8 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
 
                                 TextButton(
                                     onClick = { 
-                                        isAppUnlocked = true
+                                        showBackupPinPrompt = true
                                         showBiometricAuthPrompt = false
-                                        android.widget.Toast.makeText(context, if (isArabic) "تم الدخول برمز المرور والنسخ الاحتياطي" else "Logged in via backup passcode", android.widget.Toast.LENGTH_SHORT).show()
                                     }
                                 ) {
                                     Text(
@@ -464,10 +690,10 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                         modifier = Modifier.fillMaxWidth(0.96f),
                         shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                            containerColor = MaterialTheme.colorScheme.surface
                         ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                        elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkThemeGlobal) 8.dp else 12.dp),
+                        border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.08f) else Color(0xFFE2E8F0))
                     ) {
                         Row(
                             modifier = Modifier
@@ -483,7 +709,7 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                                     Icon(
                                         imageVector = Icons.Default.Home,
                                         contentDescription = "Overview",
-                                        tint = if (currentTab == "overview") PremiumAccentMint else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                        tint = if (currentTab == "overview") PremiumAccentMint else MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDarkThemeGlobal) 0.5f else 0.72f)
                                     )
                                 },
                                 label = if (appSettings.language == "Arabic") "الملخص" else "Overview",
@@ -496,7 +722,7 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                                     Icon(
                                         imageVector = Icons.Default.KeyboardArrowDown,
                                         contentDescription = "Income",
-                                        tint = if (currentTab == "income") PremiumAccentMint else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                        tint = if (currentTab == "income") PremiumAccentMint else MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDarkThemeGlobal) 0.5f else 0.72f)
                                     )
                                 },
                                 label = if (appSettings.language == "Arabic") "الدخل" else "Income",
@@ -509,7 +735,7 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                                     Icon(
                                         imageVector = Icons.Default.KeyboardArrowUp,
                                         contentDescription = "Expenses",
-                                        tint = if (currentTab == "expenses") PremiumAccentRed else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                        tint = if (currentTab == "expenses") PremiumAccentRed else MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDarkThemeGlobal) 0.5f else 0.72f)
                                     )
                                 },
                                 label = if (appSettings.language == "Arabic") "المصاريف" else "Expenses",
@@ -522,7 +748,7 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                                     Icon(
                                         imageVector = Icons.Default.DateRange,
                                         contentDescription = "Bills",
-                                        tint = if (currentTab == "bills") PremiumAccentPurple else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                        tint = if (currentTab == "bills") PremiumAccentPurple else MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDarkThemeGlobal) 0.5f else 0.72f)
                                     )
                                 },
                                 label = if (appSettings.language == "Arabic") "الفواتير" else "Bills",
@@ -575,7 +801,8 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                             aiLoading = aiLoading,
                             onChangeTab = { currentTab = it },
                             onQuickAddIncome = { showAddIncome = true },
-                            onQuickAddExpense = { showAddExpense = true }
+                            onQuickAddExpense = { showAddExpense = true },
+                            onQuickAddBill = { showAddBill = true }
                         )
                         "income" -> IncomeScreen(
                             viewModel = viewModel,
@@ -659,12 +886,12 @@ fun FinanceAppUI(viewModel: FinanceViewModel) {
                         text = {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 val labels = if (appSettings.language == "Arabic") {
-                                    listOf("الملخص", "الدخل الوارد", "المصاريف", "سجل المعاملات", "الفواتير المتكررة", "أهداف الادخار", "تقويم المعاملات", "البحث والفرز", "إعدادات التطبيق")
+                                    listOf("سجل المعاملات", "أهداف الادخار", "تقويم المعاملات", "إعدادات التطبيق")
                                 } else {
-                                    listOf("Overview", "Income Tracker", "Expenses", "Transaction History", "Recurring Bills", "Savings Goals", "Financial Calendar", "Search & Filter", "Settings Screen")
+                                    listOf("Transaction History", "Savings Goals", "Financial Calendar", "Settings")
                                 }
-                                val tabs = listOf("overview", "income", "expenses", "transactions", "bills", "goals", "calendar", "search", "settings")
-                                val icons = listOf(Icons.Default.Home, Icons.Default.KeyboardArrowDown, Icons.Default.KeyboardArrowUp, Icons.Default.List, Icons.Default.DateRange, Icons.Default.Star, Icons.Default.DateRange, Icons.Default.Search, Icons.Default.Settings)
+                                val tabs = listOf("transactions", "goals", "calendar", "settings")
+                                val icons = listOf(Icons.Default.List, Icons.Default.Star, Icons.Default.DateRange, Icons.Default.Settings)
 
                                 tabs.forEachIndexed { index, tab ->
                                     Button(
@@ -1430,7 +1657,8 @@ fun OverviewScreen(
     aiLoading: Boolean,
     onChangeTab: (String) -> Unit,
     onQuickAddIncome: () -> Unit,
-    onQuickAddExpense: () -> Unit
+    onQuickAddExpense: () -> Unit,
+    onQuickAddBill: () -> Unit
 ) {
     val context = LocalContext.current
     val isAmountMasked by viewModel.isBalanceHidden.collectAsState()
@@ -1452,24 +1680,29 @@ fun OverviewScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkThemeGlobal) 0.dp else 4.dp),
+                border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.Transparent else Color(0xFFE2E8F0))
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp)
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = LocalizedStrings.get("net_balance", appSettings.language == "Arabic"),
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
                         IconButton(
                             onClick = { viewModel.toggleBalanceHidden() },
                             modifier = Modifier.size(28.dp)
@@ -1487,59 +1720,181 @@ fun OverviewScreen(
                         text = formatMasked(netBalance),
                         color = if (netBalance >= 0) PremiumAccentMint else PremiumAccentRed,
                         fontSize = 36.sp,
-                        fontWeight = FontWeight.ExtraBold
+                        fontWeight = FontWeight.ExtraBold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        OverviewMetricItem(
-                            label = LocalizedStrings.get("income_cap", appSettings.language == "Arabic"),
-                            valStr = formatMasked(totalIncome),
-                            colorTheme = PremiumAccentMint
-                        )
-                        OverviewMetricItem(
-                            label = LocalizedStrings.get("expenses_cap", appSettings.language == "Arabic"),
-                            valStr = formatMasked(totalExpenses),
-                            colorTheme = PremiumAccentRed
-                        )
-                        OverviewMetricItem(
-                            label = LocalizedStrings.get("bills_cap", appSettings.language == "Arabic"),
-                            valStr = formatMasked(totalBills),
-                            colorTheme = PremiumAccentPurple
-                        )
-                    }
+                }
+            }
+        }
 
-                    Spacer(modifier = Modifier.height(20.dp))
-                    
-                    // Quick Action Logging Buttons
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        // Side-by-side metric cards (Income, Expenses, Bills) exactly as shown in screenshot 7
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Card 1: Income
+                Card(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkThemeGlobal) 0.dp else 4.dp),
+                    border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.Transparent else Color(0xFFE2E8F0))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(PremiumAccentMint.copy(alpha = 0.12f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowUp,
+                                contentDescription = null,
+                                tint = PremiumAccentMint,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = if (appSettings.language == "Arabic") "دخل وارد" else "Income",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = formatMasked(totalIncome),
+                            fontSize = 12.sp,
+                            color = PremiumAccentMint,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                         Button(
                             onClick = onQuickAddIncome,
-                            colors = ButtonDefaults.buttonColors(containerColor = PremiumAccentMint.copy(alpha = 0.12f), contentColor = PremiumAccentMint),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(vertical = 8.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = PremiumAccentMint.copy(alpha = 0.08f), contentColor = PremiumAccentMint),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
+                            modifier = Modifier.fillMaxWidth().height(28.dp)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (appSettings.language == "Arabic") "+ إضافة دخل" else "+ Add Income", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(if (appSettings.language == "Arabic") "+ إضافة دخل" else "+ Add Income", fontSize = 9.sp, fontWeight = FontWeight.Bold)
                         }
-                        
+                    }
+                }
+
+                // Card 2: Expenses
+                Card(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkThemeGlobal) 0.dp else 4.dp),
+                    border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.Transparent else Color(0xFFE2E8F0))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(PremiumAccentRed.copy(alpha = 0.12f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = PremiumAccentRed,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = if (appSettings.language == "Arabic") "مصاريف" else "Expenses",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = formatMasked(totalExpenses),
+                            fontSize = 12.sp,
+                            color = PremiumAccentRed,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                         Button(
                             onClick = onQuickAddExpense,
-                            colors = ButtonDefaults.buttonColors(containerColor = PremiumAccentRed.copy(alpha = 0.12f), contentColor = PremiumAccentRed),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(vertical = 8.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = PremiumAccentRed.copy(alpha = 0.08f), contentColor = PremiumAccentRed),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
+                            modifier = Modifier.fillMaxWidth().height(28.dp)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (appSettings.language == "Arabic") "+ إضافة مصروف" else "+ Add Expense", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(if (appSettings.language == "Arabic") "+ إضافة مصروف" else "+ Add Expense", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                // Card 3: Bills
+                Card(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkThemeGlobal) 0.dp else 4.dp),
+                    border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.Transparent else Color(0xFFE2E8F0))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(PremiumAccentPurple.copy(alpha = 0.12f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DateRange,
+                                contentDescription = null,
+                                tint = PremiumAccentPurple,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = if (appSettings.language == "Arabic") "فواتير" else "Bills",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = formatMasked(totalBills),
+                            fontSize = 12.sp,
+                            color = PremiumAccentPurple,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = onQuickAddBill,
+                            colors = ButtonDefaults.buttonColors(containerColor = PremiumAccentPurple.copy(alpha = 0.08f), contentColor = PremiumAccentPurple),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
+                            modifier = Modifier.fillMaxWidth().height(28.dp)
+                        ) {
+                            Text(if (appSettings.language == "Arabic") "+ إضافة فاتورة" else "+ Add Bill", fontSize = 9.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -1553,7 +1908,9 @@ fun OverviewScreen(
                     .fillMaxWidth()
                     .clickable { showHealthDetailsDialog = true },
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkThemeGlobal) 0.dp else 4.dp),
+                border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.Transparent else Color(0xFFE2E8F0))
             ) {
                 Row(
                     modifier = Modifier
@@ -1640,37 +1997,107 @@ fun OverviewScreen(
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkThemeGlobal) 0.dp else 4.dp),
+                border = BorderStroke(1.2.dp, PremiumAccentMint.copy(alpha = 0.25f))
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
+                Column(modifier = Modifier.padding(24.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(PremiumAccentMint.copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = PremiumAccentMint,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                            Text(
+                                text = LocalizedStrings.get("net_worth", appSettings.language == "Arabic"),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                         Text(
-                            LocalizedStrings.get("net_worth", appSettings.language == "Arabic"),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                        Text(
-                            formatMasked(netWorth),
-                            fontWeight = FontWeight.ExtraBold,
+                            text = formatMasked(netWorth),
+                            fontWeight = FontWeight.Black,
                             color = PremiumAccentMint,
-                            fontSize = 15.sp
+                            fontSize = 18.sp
                         )
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     Row(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(LocalizedStrings.get("assets", appSettings.language == "Arabic"), fontSize = 11.sp, color = PremiumTextSecondaryDark)
-                            Text(formatMasked(netBalance), fontWeight = FontWeight.Bold, color = PremiumAccentMint)
+                            Text(
+                                text = LocalizedStrings.get("assets", appSettings.language == "Arabic"),
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = formatMasked(netBalance),
+                                fontWeight = FontWeight.ExtraBold,
+                                color = PremiumAccentMint,
+                                fontSize = 15.sp
+                            )
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(LocalizedStrings.get("liabilities", appSettings.language == "Arabic"), fontSize = 11.sp, color = PremiumTextSecondaryDark)
-                            Text(formatMasked(unpaidBillsAmount), fontWeight = FontWeight.Bold, color = PremiumAccentRed)
+                            Text(
+                                text = LocalizedStrings.get("liabilities", appSettings.language == "Arabic"),
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = formatMasked(unpaidBillsAmount),
+                                fontWeight = FontWeight.ExtraBold,
+                                color = PremiumAccentRed,
+                                fontSize = 15.sp
+                            )
                         }
+                    }
+                    
+                    // Styled horizontal progress proportion bar
+                    val assetVal = if (netBalance > 0) netBalance else 0.0
+                    val liabilityVal = unpaidBillsAmount
+                    val proportionalSum = assetVal + liabilityVal
+                    val assetProportion = if (proportionalSum > 0.0) (assetVal / proportionalSum).toFloat() else 1f
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .weight(if (assetProportion > 0.02f) assetProportion else 0.02f)
+                                .background(PremiumAccentMint)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .weight(if ((1f - assetProportion) > 0.02f) (1f - assetProportion) else 0.02f)
+                                .background(PremiumAccentRed)
+                        )
                     }
                 }
             }
@@ -1695,7 +2122,8 @@ fun OverviewScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.2.dp, PremiumAccentMint.copy(alpha = 0.3f))
+                border = BorderStroke(1.2.dp, PremiumAccentMint.copy(alpha = 0.3f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkThemeGlobal) 0.dp else 4.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(
@@ -1764,7 +2192,9 @@ fun OverviewScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkThemeGlobal) 0.dp else 4.dp),
+                border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.Transparent else Color(0xFFE2E8F0))
             ) {
                 Row(
                     modifier = Modifier
@@ -1800,7 +2230,9 @@ fun OverviewScreen(
                     .fillMaxWidth()
                     .clickable { onChangeTab("transactions") },
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkThemeGlobal) 0.dp else 4.dp),
+                border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.Transparent else Color(0xFFE2E8F0))
             ) {
                 Row(
                     modifier = Modifier
@@ -2003,29 +2435,42 @@ fun IncomeScreen(
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = PremiumAccentMint)
         ) {
-            Column(modifier = Modifier.padding(24.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
-                    LocalizedStrings.get("total_income_this_month", appSettings.language == "Arabic"),
-                    fontSize = 12.sp,
+                    text = LocalizedStrings.get("total_income_this_month", appSettings.language == "Arabic"),
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black.copy(alpha = 0.6f)
+                    color = Color.Black.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    viewModel.formatAmount(totalAmt),
+                    text = viewModel.formatAmount(totalAmt),
                     fontSize = 32.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color.Black
+                    color = Color.Black,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "${incomes.size} " + LocalizedStrings.get("sources_logged", appSettings.language == "Arabic"),
-                    fontSize = 12.sp,
-                    color = Color.Black.copy(alpha = 0.6f)
+                    text = "${incomes.size} " + LocalizedStrings.get("sources_logged", appSettings.language == "Arabic"),
+                    fontSize = 15.sp,
+                    color = Color.Black.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
 
-        // Horizontal Scrollable Calendar Strip for easy logging
-        HorizontalCalendarStrip(
+        // Horizontal Day Selector
+        DayNavigatorBar(
             selectedDateStr = selectedDateStr,
             onDateSelected = onDateSelected,
             isArabic = appSettings.language == "Arabic"
@@ -2055,12 +2500,14 @@ fun IncomeScreen(
                 }
             }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(incomes) { incItem ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkThemeGlobal) 0.dp else 4.dp),
+                        border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.Transparent else Color(0xFFE2E8F0))
                     ) {
                         Row(
                             modifier = Modifier
@@ -2069,26 +2516,79 @@ fun IncomeScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
-                                Text(incItem.name, fontWeight = FontWeight.Bold)
-                                Row {
-                                    Text(LocalizedStrings.localizeCategory(incItem.category, appSettings.language == "Arabic"), fontSize = 11.sp, color = PremiumAccentMint)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(viewModel.formatTimestampToDate(incItem.timestamp), fontSize = 11.sp, color = Color.Gray)
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                val (emoji, bg) = getCategoryIconAndColor(incItem.category, isIncome = true)
+                                Box(
+                                    modifier = Modifier
+                                        .size(46.dp)
+                                        .clip(CircleShape)
+                                        .background(bg.copy(alpha = if (isDarkThemeGlobal) 0.25f else 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(emoji, fontSize = 22.sp)
+                                }
+                                Column {
+                                    Text(
+                                        text = incItem.name,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontSize = 15.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = viewModel.formatTimestampToDate(incItem.timestamp),
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = LocalizedStrings.localizeCategory(incItem.category, appSettings.language == "Arabic"),
+                                        fontSize = 11.sp,
+                                        color = bg,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
                                 }
                             }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Text(
-                                    "+" + viewModel.formatAmount(incItem.amount),
+                                    text = "+" + viewModel.formatAmount(incItem.amount),
                                     fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 16.sp,
                                     color = PremiumAccentMint
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                IconButton(onClick = { onEditClick(incItem) }) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = PremiumAccentBlue)
-                                }
-                                IconButton(onClick = { viewModel.deleteIncome(incItem) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = PremiumAccentRed)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    IconButton(
+                                        onClick = { onEditClick(incItem) },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Edit",
+                                            tint = PremiumAccentBlue,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { viewModel.deleteIncome(incItem) },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Delete",
+                                            tint = PremiumAccentRed,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -2142,29 +2642,42 @@ fun ExpensesScreen(
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = PremiumAccentRed)
         ) {
-            Column(modifier = Modifier.padding(24.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
-                    LocalizedStrings.get("total_expenses_this_month", appSettings.language == "Arabic"),
-                    fontSize = 12.sp,
+                    text = LocalizedStrings.get("total_expenses_this_month", appSettings.language == "Arabic"),
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White.copy(alpha = 0.8f)
+                    color = Color.White.copy(alpha = 0.9f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    viewModel.formatAmount(totalAmt),
+                    text = viewModel.formatAmount(totalAmt),
                     fontSize = 32.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color.White
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "${expenses.size} " + LocalizedStrings.get("total_transactions_logged", appSettings.language == "Arabic"),
-                    fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.8f)
+                    text = "${expenses.size} " + LocalizedStrings.get("total_transactions_logged", appSettings.language == "Arabic"),
+                    fontSize = 15.sp,
+                    color = Color.White.copy(alpha = 0.9f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
 
-        // Horizontal Scrollable Calendar Strip for easy logging
-        HorizontalCalendarStrip(
+        // Horizontal Day Selector
+        DayNavigatorBar(
             selectedDateStr = selectedDateStr,
             onDateSelected = onDateSelected,
             isArabic = appSettings.language == "Arabic"
@@ -2186,48 +2699,26 @@ fun ExpensesScreen(
             }
         }
 
+        // Transactions header row with integrated daily total
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(LocalizedStrings.get("transactions", appSettings.language == "Arabic"), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Column {
+                Text(LocalizedStrings.get("transactions", appSettings.language == "Arabic"), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(
+                    text = (if (appSettings.language == "Arabic") "مجموع مصاريف اليوم: " else "Today's total: ") + viewModel.formatAmount(dailySum),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PremiumAccentRed
+                )
+            }
             IconButton(
                 onClick = onAddClick,
                 modifier = Modifier.background(PremiumAccentRed, CircleShape)
             ) {
                 Icon(Icons.Default.Add, contentDescription = LocalizedStrings.get("add_expense", appSettings.language == "Arabic"), tint = Color.Black)
-            }
-        }
-
-        // Daily sum highlight banner
-        val isArabic = appSettings.language == "Arabic"
-        val labelText = if (isArabic) "مجموع مصاريف اليوم: " else "Today's expenses total: "
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = PremiumAccentRed.copy(alpha = 0.08f)),
-            border = BorderStroke(1.dp, PremiumAccentRed.copy(alpha = 0.15f))
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = labelText,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = viewModel.formatAmount(dailySum),
-                    fontWeight = FontWeight.Black,
-                    fontSize = 15.sp,
-                    color = PremiumAccentRed
-                )
             }
         }
 
@@ -2245,12 +2736,14 @@ fun ExpensesScreen(
                 Text(if (appSettings.language == "Arabic") "مفيش مصاريف لليوم ده أو الفئة دي لسه!" else "No matching expenses for this day or category", color = Color.Gray, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(filterList) { expItem ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkThemeGlobal) 0.dp else 4.dp),
+                        border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.Transparent else Color(0xFFE2E8F0))
                     ) {
                         Row(
                             modifier = Modifier
@@ -2259,26 +2752,79 @@ fun ExpensesScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
-                                Text(expItem.name, fontWeight = FontWeight.Bold)
-                                Row {
-                                    Text(LocalizedStrings.localizeCategory(expItem.category, appSettings.language == "Arabic"), fontSize = 11.sp, color = PremiumAccentRed)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(viewModel.formatTimestampToDate(expItem.timestamp), fontSize = 11.sp, color = Color.Gray)
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                val (emoji, bg) = getCategoryIconAndColor(expItem.category, isIncome = false)
+                                Box(
+                                    modifier = Modifier
+                                        .size(46.dp)
+                                        .clip(CircleShape)
+                                        .background(bg.copy(alpha = if (isDarkThemeGlobal) 0.25f else 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(emoji, fontSize = 22.sp)
+                                }
+                                Column {
+                                    Text(
+                                        text = expItem.name,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontSize = 15.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = viewModel.formatTimestampToDate(expItem.timestamp),
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = LocalizedStrings.localizeCategory(expItem.category, appSettings.language == "Arabic"),
+                                        fontSize = 11.sp,
+                                        color = bg,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
                                 }
                             }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Text(
-                                    "-" + viewModel.formatAmount(expItem.amount),
+                                    text = "-" + viewModel.formatAmount(expItem.amount),
                                     fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 16.sp,
                                     color = PremiumAccentRed
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                IconButton(onClick = { onEditClick(expItem) }) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = PremiumAccentBlue)
-                                }
-                                IconButton(onClick = { viewModel.deleteExpense(expItem) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = PremiumAccentRed)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    IconButton(
+                                        onClick = { onEditClick(expItem) },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Edit",
+                                            tint = PremiumAccentBlue,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { viewModel.deleteExpense(expItem) },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Delete",
+                                            tint = PremiumAccentRed,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -2314,20 +2860,22 @@ fun BillsScreen(
             Card(
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                colors = CardDefaults.cardColors(containerColor = PremiumAccentPurple.copy(alpha = if (isDarkThemeGlobal) 0.2f else 0.12f)),
+                border = BorderStroke(1.dp, PremiumAccentPurple.copy(alpha = 0.25f))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(LocalizedStrings.get("total_monthly", appSettings.language == "Arabic"), fontSize = 10.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                    Text(LocalizedStrings.get("total_monthly", appSettings.language == "Arabic"), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontWeight = FontWeight.Bold)
                     Text(viewModel.formatAmount(totalAmt), fontSize = 20.sp, fontWeight = FontWeight.Black, color = PremiumAccentPurple)
                 }
             }
             Card(
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                colors = CardDefaults.cardColors(containerColor = PremiumAccentMint.copy(alpha = if (isDarkThemeGlobal) 0.2f else 0.12f)),
+                border = BorderStroke(1.dp, PremiumAccentMint.copy(alpha = 0.25f))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(LocalizedStrings.get("paid_this_month", appSettings.language == "Arabic"), fontSize = 10.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                    Text(LocalizedStrings.get("paid_this_month", appSettings.language == "Arabic"), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontWeight = FontWeight.Bold)
                     Text(viewModel.formatAmount(paidAmt), fontSize = 20.sp, fontWeight = FontWeight.Black, color = PremiumAccentMint)
                 }
             }
@@ -2358,13 +2906,37 @@ fun BillsScreen(
                 }
             }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(bills) { billItem ->
+                    val colorScheme = MaterialTheme.colorScheme
+                    val (bgColor, borderColor, badgeBg, badgeText) = remember(billItem.category, isDarkThemeGlobal, colorScheme) {
+                        val catLower = billItem.category.lowercase()
+                        val isUtil = catLower.contains("util") || catLower.contains("internet") || catLower.contains("مرافق") || catLower.contains("مرفق")
+                        val isHousing = catLower.contains("hous") || catLower.contains("rent") || catLower.contains("سكن") || catLower.contains("إيجار")
+                        val isEnt = catLower.contains("entert") || catLower.contains("netflix") || catLower.contains("spotify") || catLower.contains("ترفيه") || catLower.contains("اشتراك")
+
+                        if (isDarkThemeGlobal) {
+                            when {
+                                isUtil -> listOf(Color(0xFF1E293B), Color(0xFF334155), Color(0xFF1E1B4B), Color(0xFF818CF8))
+                                isHousing -> listOf(Color(0xFF311C0C), Color(0xFF452B18), Color(0xFF2D1807), Color(0xFFFDBA74))
+                                isEnt -> listOf(Color(0xFF2D1540), Color(0xFF431C5E), Color(0xFF250D36), Color(0xFFC4B5FD))
+                                else -> listOf(colorScheme.surface, colorScheme.onSurface.copy(alpha = 0.12f), colorScheme.onSurface.copy(alpha = 0.08f), colorScheme.onSurface)
+                            }
+                        } else {
+                            when {
+                                isUtil -> listOf(Color(0xFFF0F7FF), Color(0xFFD0E7FF), Color(0xFFE0EFFE), Color(0xFF1D4ED8))
+                                isHousing -> listOf(Color(0xFFFFF9F3), Color(0xFFFFE3CC), Color(0xFFFFF0E0), Color(0xFFC2410C))
+                                isEnt -> listOf(Color(0xFFFAF5FF), Color(0xFFF3E8FF), Color(0xFFF3E8FF), Color(0xFF6D28D9))
+                                else -> listOf(Color(0xFFF8FAFC), Color(0xFFE2E8F0), Color(0xFFF1F5F9), Color(0xFF475569))
+                            }
+                        }
+                    }
+
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.04f))
+                        colors = CardDefaults.cardColors(containerColor = bgColor),
+                        border = BorderStroke(1.dp, borderColor)
                     ) {
                         Column(
                             modifier = Modifier
@@ -2394,25 +2966,26 @@ fun BillsScreen(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 15.sp,
                                         maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        overflow = TextOverflow.Ellipsis,
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                                 Box(
                                     modifier = Modifier
-                                        .background(PremiumAccentPurple.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+                                        .background(badgeBg, RoundedCornerShape(8.dp))
                                         .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
                                     Text(
                                         text = LocalizedStrings.localizeCategory(billItem.category, appSettings.language == "Arabic"),
                                         fontSize = 11.sp,
-                                        color = PremiumAccentPurple,
+                                        color = badgeText,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
 
                             Spacer(modifier = Modifier.height(12.dp))
-                            Divider(color = Color.White.copy(alpha = 0.05f))
+                            HorizontalDivider(color = borderColor.copy(alpha = 0.4f))
                             Spacer(modifier = Modifier.height(10.dp))
 
                             // Bottom Row: Due Date on Left, Amount + Controls on Right
@@ -2422,14 +2995,14 @@ fun BillsScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 val freqStr = when (billItem.frequency) {
-                                    "Monthly" -> if (appSettings.language == "Arabic") "شهرياً" else "Monthly"
-                                    "Weekly" -> if (appSettings.language == "Arabic") "أسبوعياً" else "Weekly"
-                                    else -> if (appSettings.language == "Arabic") "سنوياً" else "Yearly"
+                                        "Monthly" -> if (appSettings.language == "Arabic") "شهرياً" else "Monthly"
+                                        "Weekly" -> if (appSettings.language == "Arabic") "أسبوعياً" else "Weekly"
+                                        else -> if (appSettings.language == "Arabic") "سنوياً" else "Yearly"
                                 }
                                 Text(
                                     text = "${LocalizedStrings.get("due_day", appSettings.language == "Arabic")} ${billItem.dueDay} ($freqStr)",
                                     fontSize = 12.sp,
-                                    color = Color.Gray,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                                     fontWeight = FontWeight.Medium
                                 )
 
@@ -2551,7 +3124,9 @@ fun CalendarScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = if (isDarkThemeGlobal) 0.dp else 4.dp),
+            border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.Transparent else Color(0xFFE2E8F0))
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 // Calendar Weekday Headers
@@ -2564,7 +3139,7 @@ fun CalendarScreen(
                     days.forEach { d ->
                         Text(
                             text = d,
-                            color = Color.Gray,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f),
@@ -2612,7 +3187,7 @@ fun CalendarScreen(
                                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                             Text(
                                                 text = dateVal.toString(),
-                                                color = if (isSelected) Color.Black else MaterialTheme.colorScheme.onSurface,
+                                                color = if (isSelected) (if (isDarkThemeGlobal) Color.Black else Color.White) else MaterialTheme.colorScheme.onSurface,
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 14.sp
                                             )
@@ -2626,7 +3201,7 @@ fun CalendarScreen(
                                                         modifier = Modifier
                                                             .size(4.dp)
                                                             .clip(CircleShape)
-                                                            .background(if (isSelected) Color.Black else PremiumAccentMint)
+                                                            .background(if (isSelected) (if (isDarkThemeGlobal) Color.Black else Color.White) else PremiumAccentMint)
                                                     )
                                                 }
                                                 if (hasExpense) {
@@ -2634,7 +3209,7 @@ fun CalendarScreen(
                                                         modifier = Modifier
                                                             .size(4.dp)
                                                             .clip(CircleShape)
-                                                            .background(if (isSelected) Color.Black else PremiumAccentRed)
+                                                            .background(if (isSelected) (if (isDarkThemeGlobal) Color.Black else Color.White) else PremiumAccentRed)
                                                     )
                                                 }
                                                 if (hasBill) {
@@ -2642,7 +3217,7 @@ fun CalendarScreen(
                                                         modifier = Modifier
                                                             .size(4.dp)
                                                             .clip(CircleShape)
-                                                            .background(if (isSelected) Color.Black else PremiumAccentPurple)
+                                                            .background(if (isSelected) (if (isDarkThemeGlobal) Color.Black else Color.White) else PremiumAccentPurple)
                                                     )
                                                 }
                                             }
@@ -2934,6 +3509,8 @@ fun SettingsScreen(
 ) {
     var backupBoxText by remember { mutableStateOf("") }
     var importCsvBoxText by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    var showChangePinDialog by remember { mutableStateOf(false) }
 
     val isArabic = appSettings.language == "Arabic"
     var isSmartAlertsEnabled by remember { mutableStateOf(true) }
@@ -3206,35 +3783,121 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(LocalizedStrings.get("smart_notifications", appSettings.language == "Arabic"), fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                Text(if (appSettings.language == "Arabic") "تنبيهات تلقائية لما تعدي 80% من الميزانية" else "Alerts when you exceed 80% of budget limits", fontSize = 10.sp, color = Color.Gray)
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(PremiumAccentMint.copy(alpha = 0.12f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = PremiumAccentMint,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(LocalizedStrings.get("smart_notifications", appSettings.language == "Arabic"), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text(if (appSettings.language == "Arabic") "تنبيهات تلقائية لما تعدي 80% من الميزانية" else "Alerts when you exceed 80% of budget limits", fontSize = 10.sp, color = Color.Gray)
+                                }
                             }
                             Switch(
                                 checked = isSmartAlertsEnabled,
                                 onCheckedChange = { isSmartAlertsEnabled = it },
-                                colors = SwitchDefaults.colors(checkedThumbColor = PremiumAccentMint)
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.Black,
+                                    checkedTrackColor = PremiumAccentMint,
+                                    uncheckedThumbColor = Color.LightGray,
+                                    uncheckedTrackColor = Color.Gray.copy(alpha = 0.4f),
+                                    checkedBorderColor = PremiumAccentMint,
+                                    uncheckedBorderColor = Color.Gray.copy(alpha = 0.5f)
+                                )
                             )
                         }
                         Divider(color = Color.White.copy(alpha = 0.05f))
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(LocalizedStrings.get("fingerprint_lock", appSettings.language == "Arabic"), fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                Text(if (appSettings.language == "Arabic") "حماية فائقة لأمان حساباتك ومصاريفك" else "Advanced security lock using your touch ID", fontSize = 10.sp, color = Color.Gray)
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(PremiumAccentMint.copy(alpha = 0.12f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = null,
+                                        tint = PremiumAccentMint,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(LocalizedStrings.get("fingerprint_lock", appSettings.language == "Arabic"), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text(if (appSettings.language == "Arabic") "حماية فائقة لأمان حساباتك ومصاريفك" else "Advanced security lock using your touch ID", fontSize = 10.sp, color = Color.Gray)
+                                }
                             }
                             Switch(
                                 checked = isBiometricLockEnabled,
                                 onCheckedChange = { viewModel.updateBiometricLock(it) },
-                                colors = SwitchDefaults.colors(checkedThumbColor = PremiumAccentMint)
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.Black,
+                                    checkedTrackColor = PremiumAccentMint,
+                                    uncheckedThumbColor = Color.LightGray,
+                                    uncheckedTrackColor = Color.Gray.copy(alpha = 0.4f),
+                                    checkedBorderColor = PremiumAccentMint,
+                                    uncheckedBorderColor = Color.Gray.copy(alpha = 0.5f)
+                                )
                             )
+                        }
+                        if (isBiometricLockEnabled) {
+                            Divider(color = Color.White.copy(alpha = 0.05f))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showChangePinDialog = true }
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = if (isArabic) "رمز المرور الاحتياطي للمستشعرات" else "Backup Authentication PIN",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = if (isArabic) "الرمز الحالي هو: ${appSettings.backupPin}" else "Current backup PIN is: ${appSettings.backupPin}",
+                                        fontSize = 10.sp,
+                                        color = PremiumAccentMint,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit PIN",
+                                    tint = PremiumAccentMint,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -3308,6 +3971,76 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+
+    if (showChangePinDialog) {
+        var tempPin by remember { mutableStateOf("") }
+        var inputError by remember { mutableStateOf(false) }
+
+        AlertDialog(
+            onDismissRequest = { showChangePinDialog = false },
+            title = {
+                Text(
+                    text = if (isArabic) "تعديل رمز المرور الاحتياطي" else "Update Backup PIN",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = if (isArabic) "يرجى كتابة رمز مرور احتياطي يتكون من 4 أرقام للاعتماد عليه عند تعذر البصمة:" 
+                               else "Please enter a 4-digit backup PIN code to unlock your app whenever biometric scan fails:",
+                        fontSize = 13.sp,
+                        color = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = tempPin,
+                        onValueChange = { input ->
+                            if (input.all { it.isDigit() } && input.length <= 4) {
+                                tempPin = input
+                                inputError = false
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        label = { Text(if (isArabic) "رمز المرور الجديد (4 أرقام)" else "New Backup PIN (4 Digits)") },
+                        singleLine = true,
+                        isError = inputError,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (inputError) {
+                        Text(
+                            text = if (isArabic) "يجب أن يتكون الرمز من 4 أرقام بالضبط" else "PIN must be exactly 4 digits",
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    colors = ButtonDefaults.buttonColors(containerColor = PremiumAccentMint),
+                    onClick = {
+                        if (tempPin.length == 4) {
+                            viewModel.updateBackupPin(tempPin)
+                            showChangePinDialog = false
+                            android.widget.Toast.makeText(context, if (isArabic) "تم تحديث رمز المرور بنجاح" else "Backup PIN updated successfully!", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            inputError = true
+                        }
+                    }
+                ) {
+                    Text(if (isArabic) "حفظ" else "Save", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showChangePinDialog = false }) {
+                    Text(if (isArabic) "إلغاء" else "Cancel", color = Color.Gray)
+                }
+            }
+        )
     }
 }
 
@@ -3425,6 +4158,114 @@ fun SearchFilterScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+fun getAdjacentDate(dateStr: String, daysToAdd: Int): String {
+    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+    return try {
+        val date = sdf.parse(dateStr) ?: java.util.Date()
+        val cal = java.util.Calendar.getInstance()
+        cal.time = date
+        cal.add(java.util.Calendar.DAY_OF_YEAR, daysToAdd)
+        sdf.format(cal.time)
+    } catch (e: Exception) {
+        dateStr
+    }
+}
+
+fun formatDisplayDay(dateStr: String, isArabic: Boolean): String {
+    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+    return try {
+        val date = sdf.parse(dateStr) ?: java.util.Date()
+        val calendar = java.util.Calendar.getInstance().apply { time = date }
+        
+        val dayNum = calendar.get(java.util.Calendar.DAY_OF_MONTH)
+        val year = calendar.get(java.util.Calendar.YEAR)
+        val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK) // 1 = Sun, ..., 7 = Sat
+        val monthIdx = calendar.get(java.util.Calendar.MONTH) // 0-indexed month
+        
+        val dayNamesEn = listOf("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+        val dayNamesAr = listOf("الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت")
+        
+        val monthNamesEn = listOf("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
+        val monthNamesAr = listOf("يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر")
+        
+        val dayName = if (isArabic) dayNamesAr[dayOfWeek - 1] else dayNamesEn[dayOfWeek - 1]
+        val monthName = if (isArabic) monthNamesAr[monthIdx] else monthNamesEn[monthIdx]
+        
+        if (isArabic) {
+            "$dayName، $dayNum $monthName $year"
+        } else {
+            "$dayName, $dayNum $monthName $year"
+        }
+    } catch (e: Exception) {
+        dateStr
+    }
+}
+
+@Composable
+fun DayNavigatorBar(
+    selectedDateStr: String,
+    onDateSelected: (String) -> Unit,
+    isArabic: Boolean
+) {
+    val displayStr = remember(selectedDateStr, isArabic) {
+        formatDisplayDay(selectedDateStr, isArabic)
+    }
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = {
+                val pastDate = getAdjacentDate(selectedDateStr, -1)
+                onDateSelected(pastDate)
+            }) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Previous Day",
+                    tint = PremiumAccentMint
+                )
+            }
+            
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = if (isArabic) "اليوم المحدد" else "Selected Day",
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = displayStr,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            
+            IconButton(onClick = {
+                val nextDate = getAdjacentDate(selectedDateStr, 1)
+                onDateSelected(nextDate)
+            }) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = "Next Day",
+                    tint = PremiumAccentMint
+                )
             }
         }
     }
