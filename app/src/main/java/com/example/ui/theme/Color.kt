@@ -18,11 +18,10 @@ val BasePremiumAccentBlue = Color(0xFF3B82F6)
 val BasePremiumAccentOrange = Color(0xFFF59E0B)
 
 val PremiumAccentMint: Color
-    get() = if (isDarkThemeGlobal) BasePremiumAccentMint else Color(0xFF047857) // Darkened radiant green for Light contrast
+    get() = if (isDarkThemeGlobal) BasePremiumAccentMint else Color(0xFF059669) // Darkened radiant green for Light contrast
 
 val PremiumAccentRed: Color
     get() = if (isDarkThemeGlobal) BasePremiumAccentRed else Color(0xFFDC2626)  // Darkened warning red for Light contrast
-
 val PremiumAccentPurple: Color
     get() = if (isDarkThemeGlobal) BasePremiumAccentPurple else Color(0xFF6D28D9) // Darkened bill purple for Light contrast
 
@@ -32,7 +31,8 @@ val PremiumAccentBlue: Color
 val PremiumAccentOrange: Color
     get() = if (isDarkThemeGlobal) BasePremiumAccentOrange else Color(0xFFC2410C) // Darkened yellow/amber for Light contrast
 
-val PremiumTextSecondaryDark = Color(0xFF94A3B8) // Slate gray for secondary details
+val PremiumTextSecondaryDark: Color
+    get() = if (isDarkThemeGlobal) Color(0xFF94A3B8) else Color(0xFF64748B) // Slate gray with high contrast for Light mode and standard slate for Dark mode
 
 // Premium Light Slate Palette
 val PremiumLightBg = Color(0xFFF3F4F6)

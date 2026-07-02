@@ -6,6 +6,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.CompositionLocalProvider
 
 private val DarkColorScheme = darkColorScheme(
     primary = BasePremiumAccentMint,
@@ -23,11 +24,11 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF047857), // Professional emerald/teal green with high contrast and readability
+    primary = Color(0xFF059669), // Professional emerald/teal green with high contrast and readability
     onPrimary = Color.White,
     secondary = Color(0xFF0284C7), // Elegant sky blue
     onSecondary = Color.White,
-    background = Color(0xFFF8FAFC), // Modern ultra-clean soft slate-blue background
+    background = Color(0xFFF0F4F8), // Warm soft slate-blue background
     surface = Color(0xFFFFFFFF), // Crisp pure white for cards
     onBackground = Color(0xFF0F172A), // Deep slate gray text
     onSurface = Color(0xFF0F172A), // Deep slate gray text
@@ -40,6 +41,7 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun MyApplicationTheme(
     themePreference: String = "Dark", // "Dark", "Light", "System"
+    language: String = "English",
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (themePreference) {
@@ -50,10 +52,11 @@ fun MyApplicationTheme(
     isDarkThemeGlobal = darkTheme
 
     val colors = if (darkTheme) DarkColorScheme else LightColorScheme
+    val dynamicTypography = getTypographyForLanguage(language)
 
     MaterialTheme(
         colorScheme = colors,
-        typography = Typography,
+        typography = dynamicTypography,
         content = content
     )
 }

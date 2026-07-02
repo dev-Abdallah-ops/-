@@ -80,7 +80,7 @@ interface FinanceDao {
     suspend fun deleteCustomCategory(category: CustomCategory)
 
 
-    // Global Clear Data queries (except custom categories and settings to keep app preferences)
+    // Async Clear Functions
     @Query("DELETE FROM incomes")
     suspend fun clearIncomes()
 
@@ -92,4 +92,17 @@ interface FinanceDao {
 
     @Query("DELETE FROM goals")
     suspend fun clearGoals()
+
+    // Highly Optimized Range Queries and Room performance optimization
+    @Query("SELECT * FROM expenses WHERE timestamp BETWEEN :start AND :end ORDER BY timestamp DESC")
+    fun getExpensesByTimeRange(start: Long, end: Long): Flow<List<Expense>>
+
+    @Query("SELECT * FROM incomes WHERE timestamp BETWEEN :start AND :end ORDER BY timestamp DESC")
+    fun getIncomesByTimeRange(start: Long, end: Long): Flow<List<Income>>
+
+    @Query("SELECT SUM(amount) FROM expenses WHERE category = :cat")
+    suspend fun getExpensesSumByCategory(cat: String): Double?
+
+    @Query("SELECT SUM(amount) FROM expenses WHERE timestamp BETWEEN :start AND :end")
+    suspend fun getExpensesSumByTimeRange(start: Long, end: Long): Double?
 }

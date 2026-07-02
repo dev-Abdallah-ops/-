@@ -41,6 +41,45 @@ class FinanceViewModel(
     private val _isBalanceHidden = MutableStateFlow(false)
     val isBalanceHidden: StateFlow<Boolean> = _isBalanceHidden.asStateFlow()
 
+    // AI Anomaly Alert Flow
+    private val _aiAnomalyAlert = MutableStateFlow<String?>(null)
+    val aiAnomalyAlert: StateFlow<String?> = _aiAnomalyAlert.asStateFlow()
+
+    fun dismissAnomalyAlert() {
+        _aiAnomalyAlert.value = null
+    }
+
+    fun getDaysUntilDue(bill: Bill): Int {
+        val calNow = java.util.Calendar.getInstance()
+        val today = calNow.get(java.util.Calendar.DAY_OF_MONTH)
+        val curMaxDay = calNow.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+        val targetDueDay = bill.dueDay.coerceIn(1, curMaxDay)
+
+        return if (targetDueDay >= today) {
+            targetDueDay - today
+        } else {
+            val daysInThisMonth = curMaxDay - today
+            daysInThisMonth + targetDueDay
+        }
+    }
+
+    // Interactive AI chat states (Message, isUser)
+    private val _chatMessages = MutableStateFlow<List<Pair<String, Boolean>>>(emptyList())
+    val chatMessages: StateFlow<List<Pair<String, Boolean>>> = _chatMessages.asStateFlow()
+
+    private val _chatLoading = MutableStateFlow(false)
+    val chatLoading: StateFlow<Boolean> = _chatLoading.asStateFlow()
+
+    // Last deleted stack for Undo capability
+    sealed interface DeletedAction {
+        data class IncomeAction(val income: Income) : DeletedAction
+        data class ExpenseAction(val expense: Expense) : DeletedAction
+    }
+
+    private val deletedStack = java.util.ArrayDeque<DeletedAction>()
+
+    private var aiRefreshJob: kotlinx.coroutines.Job? = null
+
     fun toggleBalanceHidden() {
         _isBalanceHidden.value = !_isBalanceHidden.value
     }
@@ -54,6 +93,8 @@ class FinanceViewModel(
             } ?: run {
                 repository.insertSettings(AppSettings())
             }
+            // Check & process recurring items + reset bills for monthly periods
+            checkRecurringAndResetBills()
         }
     }
 
@@ -101,6 +142,14 @@ class FinanceViewModel(
 
     val totalGoalsSaved = goals.map { list -> list.sumOf { it.savedAmount } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
+    val savingsRate = combine(totalIncome, totalExpenses) { income, expenses ->
+        if (income > 0) {
+            ((income - expenses) / income * 100).coerceIn(0.0, 100.0)
+        } else {
+            0.0
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
     val netBalance = combine(totalIncome, totalExpenses) { inc, exp -> inc - exp }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
@@ -180,7 +229,6 @@ class FinanceViewModel(
                     notes = notes
                 )
             )
-            refreshAiInsights()
         }
     }
 
@@ -197,19 +245,18 @@ class FinanceViewModel(
                     notes = notes
                 )
             )
-            refreshAiInsights()
         }
     }
 
     fun deleteIncome(income: Income) {
         viewModelScope.launch {
+            deletedStack.push(DeletedAction.IncomeAction(income))
             repository.deleteIncome(income)
-            refreshAiInsights()
         }
     }
 
     // Expenses
-    fun addExpense(name: String, amount: Double, category: String, dateStr: String, notes: String) {
+    fun addExpense(name: String, amount: Double, category: String, dateStr: String, isRecurring: Boolean = false, notes: String) {
         viewModelScope.launch {
             repository.insertExpense(
                 Expense(
@@ -217,14 +264,30 @@ class FinanceViewModel(
                     amount = amount,
                     category = category,
                     timestamp = parseDateToTimestamp(dateStr),
+                    isRecurring = isRecurring,
                     notes = notes
                 )
             )
-            refreshAiInsights()
+            // Local AI spending anomaly deviation detector (3x category average warning)
+            try {
+                val ofCategory = expenses.value.filter { it.category == category }
+                if (ofCategory.isNotEmpty()) {
+                    val average = ofCategory.map { it.amount }.average()
+                    if (amount > average * 3.0) {
+                        _aiAnomalyAlert.value = if (settings.value.language == "Arabic") {
+                            "⚠️ تنبيه ذكاء اصطناعي: لقد سجلت مصروفاً بقيمة (${formatAmount(amount)}) بقسم [$category] وهو أكثر بـ 3 أضعاف من متوسط صرفك المعتاد وهو (${formatAmount(average)})! خد بالك يا بطل!"
+                        } else {
+                            "⚠️ AI Anomaly alert: You spent ${formatAmount(amount)} in [$category], which is more than 3x your historical average of ${formatAmount(average)}! Keep a close eye on this!"
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
-    fun updateExpense(id: Int, name: String, amount: Double, category: String, dateStr: String, notes: String) {
+    fun updateExpense(id: Int, name: String, amount: Double, category: String, dateStr: String, isRecurring: Boolean = false, notes: String) {
         viewModelScope.launch {
             repository.updateExpense(
                 Expense(
@@ -233,17 +296,44 @@ class FinanceViewModel(
                     amount = amount,
                     category = category,
                     timestamp = parseDateToTimestamp(dateStr),
+                    isRecurring = isRecurring,
                     notes = notes
                 )
             )
-            refreshAiInsights()
+            // Local AI warning spending anomaly deviation detector (3x category average)
+            try {
+                val ofCategory = expenses.value.filter { it.category == category && it.id != id }
+                if (ofCategory.isNotEmpty()) {
+                    val average = ofCategory.map { it.amount }.average()
+                    if (amount > average * 3.0) {
+                        _aiAnomalyAlert.value = if (settings.value.language == "Arabic") {
+                            "⚠️ تنبيه ذكاء اصطناعي: لقد عدلت مصروفاً بقيمة (${formatAmount(amount)}) بقسم [$category] وهو أكثر بـ 3 أضعاف من متوسط صرفك المعتاد وهو (${formatAmount(average)})! خد بالك يا بطل!"
+                        } else {
+                            "⚠️ AI Anomaly alert: Updated transaction of ${formatAmount(amount)} in [$category] is more than 3x your historical average of ${formatAmount(average)}! Keep a close eye on this!"
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
     fun deleteExpense(expense: Expense) {
         viewModelScope.launch {
+            deletedStack.push(DeletedAction.ExpenseAction(expense))
             repository.deleteExpense(expense)
-            refreshAiInsights()
+        }
+    }
+
+    fun undoDelete() {
+        viewModelScope.launch {
+            if (!deletedStack.isEmpty()) {
+                when (val action = deletedStack.pop()) {
+                    is DeletedAction.IncomeAction -> repository.insertIncome(action.income)
+                    is DeletedAction.ExpenseAction -> repository.insertExpense(action.expense)
+                }
+            }
         }
     }
 
@@ -261,21 +351,18 @@ class FinanceViewModel(
                     isPaid = false
                 )
             )
-            refreshAiInsights()
         }
     }
 
     fun updateBill(bill: Bill) {
         viewModelScope.launch {
             repository.updateBill(bill)
-            refreshAiInsights()
         }
     }
 
     fun deleteBill(bill: Bill) {
         viewModelScope.launch {
             repository.deleteBill(bill)
-            refreshAiInsights()
         }
     }
 
@@ -293,22 +380,30 @@ class FinanceViewModel(
                     notes = notes
                 )
             )
-            refreshAiInsights()
         }
     }
 
-    fun saveGoalAmount(goal: Goal, incrementalAmount: Double) {
+    fun saveGoalAmount(goal: Goal, incrementalAmount: Double, deductFromBalance: Boolean = false) {
         viewModelScope.launch {
             val updatedSaved = goal.savedAmount + incrementalAmount
             repository.updateGoal(goal.copy(savedAmount = updatedSaved.coerceAtLeast(0.0)))
-            refreshAiInsights()
+            if (deductFromBalance && incrementalAmount > 0.0) {
+                val expName = if (settings.value.language == "Arabic") "تحويل لهدف: ${goal.name}" else "Transfer to: ${goal.name}"
+                repository.insertExpense(
+                    Expense(
+                        name = expName,
+                        amount = incrementalAmount,
+                        category = "Other",
+                        notes = if (settings.value.language == "Arabic") "تحويل مالي تلقائي لحصالة الهدف" else "Automatic balance log towards savings goal"
+                    )
+                )
+            }
         }
     }
 
     fun deleteGoal(goal: Goal) {
         viewModelScope.launch {
             repository.deleteGoal(goal)
-            refreshAiInsights()
         }
     }
 
@@ -325,7 +420,45 @@ class FinanceViewModel(
                 )
             )
             // Re-fetch insights if language/currency changed
-            refreshAiInsights()
+        }
+    }
+
+    fun convertAllCurrencies(fromUsdToEgp: Boolean, rate: Double) {
+        viewModelScope.launch {
+            // Fetch and convert incomes
+            incomes.value.forEach { item ->
+                val newAmount = if (fromUsdToEgp) item.amount * rate else item.amount / rate
+                repository.updateIncome(item.copy(amount = newAmount))
+            }
+
+            // Fetch and convert expenses
+            expenses.value.forEach { item ->
+                val newAmount = if (fromUsdToEgp) item.amount * rate else item.amount / rate
+                repository.updateExpense(item.copy(amount = newAmount))
+            }
+
+            // Fetch and convert bills
+            bills.value.forEach { item ->
+                val newAmount = if (fromUsdToEgp) item.amount * rate else item.amount / rate
+                repository.updateBill(item.copy(amount = newAmount))
+            }
+
+            // Fetch and convert goals
+            goals.value.forEach { item ->
+                val newTarget = if (fromUsdToEgp) item.targetAmount * rate else item.targetAmount / rate
+                val newSaved = if (fromUsdToEgp) item.savedAmount * rate else item.savedAmount / rate
+                repository.updateGoal(item.copy(targetAmount = newTarget, savedAmount = newSaved))
+            }
+
+            // Update settings limit and currency symbol
+            val currentSettings = settings.value
+            val newLimit = if (fromUsdToEgp) currentSettings.monthlyLimit * rate else currentSettings.monthlyLimit / rate
+            repository.insertSettings(
+                currentSettings.copy(
+                    currency = if (fromUsdToEgp) "EGP" else "USD",
+                    monthlyLimit = newLimit
+                )
+            )
         }
     }
 
@@ -338,11 +471,36 @@ class FinanceViewModel(
         }
     }
 
-    fun updateBackupPin(pin: String) {
+    fun updateSmartAlerts(enabled: Boolean) {
         viewModelScope.launch {
             val currentSettings = settings.value
             repository.insertSettings(
-                currentSettings.copy(backupPin = pin)
+                currentSettings.copy(isSmartAlertsEnabled = enabled)
+            )
+        }
+    }
+
+    fun updateOnboardingStatus(completed: Boolean) {
+        viewModelScope.launch {
+            val currentSettings = settings.value
+            repository.insertSettings(
+                currentSettings.copy(hasCompletedOnboarding = completed)
+            )
+        }
+    }
+
+    fun updateBackupPin(pin: String) {
+        viewModelScope.launch {
+            val currentSettings = settings.value
+            val hashedPin = try {
+                val digest = java.security.MessageDigest.getInstance("SHA-256")
+                val hash = digest.digest(pin.toByteArray(Charsets.UTF_8))
+                hash.joinToString("") { "%02x".format(it) }
+            } catch (e: Exception) {
+                pin
+            }
+            repository.insertSettings(
+                currentSettings.copy(backupPin = hashedPin)
             )
         }
     }
@@ -394,6 +552,27 @@ class FinanceViewModel(
         return dataStr
     }
 
+    private fun parseCsvLine(line: String): List<String> {
+        val result = mutableListOf<String>()
+        var inQuotes = false
+        val field = StringBuilder()
+        var i = 0
+        while (i < line.length) {
+            val c = line[i]
+            if (c == '\"') {
+                inQuotes = !inQuotes
+            } else if (c == ',' && !inQuotes) {
+                result.add(field.toString().trim())
+                field.setLength(0)
+            } else {
+                field.append(c)
+            }
+            i++
+        }
+        result.add(field.toString().trim())
+        return result
+    }
+
     fun importFromCSV(csvText: String) {
         viewModelScope.launch {
             try {
@@ -402,7 +581,7 @@ class FinanceViewModel(
                 for (i in 1 until lines.size) {
                     val line = lines[i].trim()
                     if (line.isBlank()) continue
-                    val parts = line.split(",")
+                    val parts = parseCsvLine(line)
                     if (parts.size >= 4) {
                         val type = parts[0].trim()
                         val name = parts[1].trim().replace("\"", "")
@@ -592,24 +771,123 @@ class FinanceViewModel(
         _operationalLog.value = null
     }
 
+    private fun getRecentTransactionsText(): String {
+        val incList = incomes.value
+        val expList = expenses.value
+        val combined = (incList.map { Pair(it.timestamp, "Income: ${it.name} (${it.category}) = ${formatAmount(it.amount)} on ${formatTimestampToDate(it.timestamp)}") } +
+                        expList.map { Pair(it.timestamp, "Expense: ${it.name} (${it.category}) = ${formatAmount(it.amount)} on ${formatTimestampToDate(it.timestamp)}") })
+                        .sortedByDescending { it.first }
+                        .take(15)
+        return if (combined.isEmpty()) "No recent transactions logged yet." else combined.joinToString("\n") { it.second }
+    }
+
+    private fun getUpcomingBillsText(): String {
+        val bList = bills.value
+        val upcoming = bList.filter { !it.isPaid }.map { bill ->
+            val days = getDaysUntilDue(bill)
+            "- ${bill.name}: ${formatAmount(bill.amount)}, due in $days days (Day ${bill.dueDay})"
+        }
+        return if (upcoming.isEmpty()) "No upcoming unpaid bills." else upcoming.joinToString("\n")
+    }
+
+    private fun getGoalProgressText(): String {
+        val gList = goals.value
+        val progressList = gList.map { goal ->
+            val pct = if (goal.targetAmount > 0) (goal.savedAmount / goal.targetAmount) * 100 else 0.0
+            "- ${goal.name}: Progress ${formatAmount(goal.savedAmount)}/${formatAmount(goal.targetAmount)} (${String.format("%.1f", pct)}% completed)"
+        }
+        return if (progressList.isEmpty()) "No savings goals set yet." else progressList.joinToString("\n")
+    }
+
+    private fun getComparisonText(): String {
+        val expList = expenses.value
+        val cal = java.util.Calendar.getInstance()
+        val currMonth = cal.get(java.util.Calendar.MONTH)
+        val currYear = cal.get(java.util.Calendar.YEAR)
+
+        val thisMonthExpenses = expList.filter {
+            val c = java.util.Calendar.getInstance().apply { timeInMillis = it.timestamp }
+            c.get(java.util.Calendar.MONTH) == currMonth && c.get(java.util.Calendar.YEAR) == currYear
+        }.sumOf { it.amount }
+
+        cal.add(java.util.Calendar.MONTH, -1)
+        val prevMonth = cal.get(java.util.Calendar.MONTH)
+        val prevYear = cal.get(java.util.Calendar.YEAR)
+
+        val prevMonthExpenses = expList.filter {
+            val c = java.util.Calendar.getInstance().apply { timeInMillis = it.timestamp }
+            c.get(java.util.Calendar.MONTH) == prevMonth && c.get(java.util.Calendar.YEAR) == prevYear
+        }.sumOf { it.amount }
+
+        val monthlyLim = settings.value.monthlyLimit
+        val warningMsg = if (monthlyLim > 0 && thisMonthExpenses > monthlyLim) {
+            "WARNING: Spending exceeded the specified monthly limit of ${formatAmount(monthlyLim)}!"
+        } else ""
+
+        return "This Month Total Expenditures: ${formatAmount(thisMonthExpenses)}. Previous Month Total Expenditures: ${formatAmount(prevMonthExpenses)}. $warningMsg"
+    }
+
     // --- AI Insight Refreshing Trigger ---
-    fun refreshAiInsights() {
-        viewModelScope.launch {
+    private var lastInsightIncome: Double = -1.0
+    private var lastInsightExpense: Double = -1.0
+    private var lastInsightBills: Double = -1.0
+    private var lastInsightGoals: Double = -1.0
+    private var lastInsightLanguage: String = ""
+    private var lastInsightCurrency: String = ""
+
+    fun refreshAiInsights(isManual: Boolean = false) {
+        aiRefreshJob?.cancel()
+        aiRefreshJob = viewModelScope.launch {
+            if (!isManual) {
+                // Throttled: delay 3 seconds to gather rapid or batch operations
+                kotlinx.coroutines.delay(3000)
+            }
+
+            val inc = totalIncome.value
+            val exp = totalExpenses.value
+            val bll = totalBills.value
+            val gol = totalGoalsSaved.value
+            val lang = settings.value.language
+            val curr = settings.value.currency
+
+            if (!isManual) {
+                val valDiff = Math.abs(inc - lastInsightIncome) + 
+                              Math.abs(exp - lastInsightExpense) + 
+                              Math.abs(bll - lastInsightBills) + 
+                              Math.abs(gol - lastInsightGoals)
+                // If the total difference is negligible and language/currency are identical, skip to save API quota
+                if (valDiff < 10.0 && lang == lastInsightLanguage && curr == lastInsightCurrency && _aiInsight.value != null) {
+                    return@launch
+                }
+            }
+
             _aiLoading.value = true
             try {
                 val insight = GeminiAdvisor.getFinancialInsights(
-                    incomeTotal = totalIncome.value,
-                    expenseTotal = totalExpenses.value,
-                    billsTotal = totalBills.value,
-                    goalsTotal = totalGoalsSaved.value,
-                    remainingLimit = if (settings.value.monthlyLimit > 0) (settings.value.monthlyLimit - totalExpenses.value) else 0.0,
+                    incomeTotal = inc,
+                    expenseTotal = exp,
+                    billsTotal = bll,
+                    goalsTotal = gol,
+                    remainingLimit = if (settings.value.monthlyLimit > 0) (settings.value.monthlyLimit - exp) else 0.0,
                     topSpendingCategory = topSpendingCategory.value,
                     currencySymbol = getCurrencySymbol(),
-                    languageName = settings.value.language
+                    languageName = lang,
+                    transactionListText = getRecentTransactionsText(),
+                    upcomingBillsText = getUpcomingBillsText(),
+                    goalProgressText = getGoalProgressText(),
+                    comparisonText = getComparisonText()
                 )
                 _aiInsight.value = insight
+                
+                // Cache the last insight states upon success
+                lastInsightIncome = inc
+                lastInsightExpense = exp
+                lastInsightBills = bll
+                lastInsightGoals = gol
+                lastInsightLanguage = lang
+                lastInsightCurrency = curr
             } catch (e: Exception) {
-                Log.e("FinanceViewModel", "Error fetching AI Advice", e)
+                if (BuildConfig.DEBUG) Log.e("FinanceViewModel", "Error fetching AI Advice", e)
             } finally {
                 _aiLoading.value = false
             }
@@ -619,16 +897,76 @@ class FinanceViewModel(
     // --- DateTime Helpers ---
     private fun parseDateToTimestamp(dateStr: String): Long {
         return try {
-            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-            val d = sdf.parse(dateStr)
-            d?.time ?: System.currentTimeMillis()
+            val date = java.time.LocalDate.parse(dateStr)
+            date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
         } catch (e: Exception) {
             System.currentTimeMillis()
         }
     }
 
     fun formatTimestampToDate(timestamp: Long): String {
-        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-        return sdf.format(java.util.Date(timestamp))
+        return java.time.Instant.ofEpochMilli(timestamp)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toLocalDate()
+            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd", java.util.Locale.US))
+    }
+
+    // --- Interactive AI Chat Handler ---
+    fun askFinancialChat(userMessage: String) {
+        if (userMessage.isBlank()) return
+        
+        val currentList = _chatMessages.value.toMutableList()
+        currentList.add(Pair(userMessage, true))
+        _chatMessages.value = currentList
+        
+        _chatLoading.value = true
+        viewModelScope.launch {
+            try {
+                val response = GeminiAdvisor.askFinancialChat(
+                    chatHistory = currentList,
+                    incomeTotal = totalIncome.value,
+                    expenseTotal = totalExpenses.value,
+                    billsTotal = totalBills.value,
+                    goalsTotal = totalGoalsSaved.value,
+                    remainingLimit = if (settings.value.monthlyLimit > 0) (settings.value.monthlyLimit - totalExpenses.value) else 0.0,
+                    topSpendingCategory = topSpendingCategory.value,
+                    currencySymbol = getCurrencySymbol(),
+                    languageName = settings.value.language,
+                    transactionListText = getRecentTransactionsText(),
+                    upcomingBillsText = getUpcomingBillsText(),
+                    goalProgressText = getGoalProgressText(),
+                    comparisonText = getComparisonText()
+                )
+                val updatedList = _chatMessages.value.toMutableList()
+                updatedList.add(Pair(response, false))
+                _chatMessages.value = updatedList
+            } catch (e: Exception) {
+                if (BuildConfig.DEBUG) Log.e("FinanceViewModel", "Error fetching chat response", e)
+                val updatedList = _chatMessages.value.toMutableList()
+                val isAr = settings.value.language == "Arabic"
+                updatedList.add(Pair(if (isAr) "عذراً يا صاحبي، حصل خطأ في الاتصال بالشبكة! (التفاصيل: ${e.localizedMessage})" else "Sorry, a network connection error pattern occurred! (Details: ${e.localizedMessage})", false))
+                _chatMessages.value = updatedList
+            } finally {
+                _chatLoading.value = false
+            }
+        }
+    }
+
+    fun clearChat() {
+        _chatMessages.value = emptyList()
+    }
+
+    // --- Core processing for monthly recurring bills and transactions ---
+    fun checkRecurringAndResetBills() {
+        viewModelScope.launch {
+            try {
+                val prefs = getApplication<Application>().getSharedPreferences("tawffer_prefs", android.content.Context.MODE_PRIVATE)
+                val lastMonthStr = prefs.getString("last_checked_month", "") ?: ""
+                val newMonthStr = repository.syncRecurringTransactions(lastMonthStr)
+                prefs.edit().putString("last_checked_month", newMonthStr).apply()
+            } catch (e: Exception) {
+                if (BuildConfig.DEBUG) Log.e("FinanceViewModel", "Error sync recurring background tasks", e)
+            }
+        }
     }
 }

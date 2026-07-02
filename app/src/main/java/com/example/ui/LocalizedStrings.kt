@@ -7,7 +7,7 @@ object LocalizedStrings {
                 // Main & Navigator
                 "quick_navigation" -> "انتقال سريع"
                 "close" -> "إغلاق"
-                "app_title" -> "حصّالة - مدير فلوسك المالي"
+                "app_title" -> "توفير (Tawffer) - مديرك المالي"
                 
                 // Tabs
                 "tab_overview" -> "نظرة عامة"
@@ -116,7 +116,7 @@ object LocalizedStrings {
                 "edit_bill" -> "تعديل الفاتورة"
                 "add_bill" -> "إضافة فاتورة متكررة"
                 "add_goal" -> "إضافة هدف ادخار جديد"
-                "name" -> "وصف أو اسم البند (مثال: قبض الشغل)"
+                "name" -> "وصف أو اسم البند"
                 "amount" -> "المبلغ"
                 "category" -> "اختر الفئة المناسبة"
                 "date" -> "تاريخ ووقت العملية (YYYY-MM-DD)"
@@ -141,7 +141,7 @@ object LocalizedStrings {
             when (key) {
                 "quick_navigation" -> "Quick Navigation"
                 "close" -> "Close"
-                "app_title" -> "Finance Tracker"
+                "app_title" -> "Tawffer"
                 "tab_overview" -> "Overview"
                 "tab_income" -> "Income"
                 "tab_expenses" -> "Expenses"
@@ -262,7 +262,7 @@ object LocalizedStrings {
         if (!isArabic) return category
         return when (category.trim()) {
             // Income Categories
-            "Salary" -> "المرتب الأسير 💵"
+            "Salary" -> "المرتب الاساسي 💵"
             "Freelance" -> "شغل حر ولقطات فري لانس 💻"
             "Investment" -> "أرباح البورصة والذهب 📈"
             "Rental" -> "إيجارات وعقارات 🏠"
